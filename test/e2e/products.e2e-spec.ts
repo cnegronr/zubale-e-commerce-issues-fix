@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, NotFoundException } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
@@ -11,7 +11,8 @@ import { Category } from '../../src/products/category.entity';
 
 describe('ProductsController & CategoriesController (e2e)', () => {
   let app: INestApplication<App>;
-  let productsService: jest.Mocked<ProductsService>;
+  let cacheManager: any;
+  let productsService: ProductsService;
 
   const mockProduct = {
     id: 1,
@@ -23,51 +24,86 @@ describe('ProductsController & CategoriesController (e2e)', () => {
     categoryId: 1,
   };
 
+  const mockPhoneProduct = {
+    id: 2,
+    name: 'Smartphone',
+    description: null,
+    price: 800,
+    stock: 5,
+    isAvailable: true,
+    categoryId: 1,
+  };
+
+  const parentCategory = {
+    id: 10,
+    name: 'Computers',
+    description: 'Hardware',
+    parentId: null,
+    parent: null,
+    children: [],
+  };
+
+  const childCategory = {
+    id: 2,
+    name: 'Laptops',
+    description: 'Portable',
+    parentId: 1,
+    parent: parentCategory,
+    children: [],
+  };
+
   const mockCategory = {
     id: 1,
     name: 'Electronics',
     description: 'Tech gadgets',
-    parentId: null,
+    parentId: 10,
+    parent: parentCategory,
+    children: [childCategory],
   };
 
   beforeEach(async () => {
-    const mockProductsService = {
-      findAll: jest.fn().mockResolvedValue([mockProduct]),
-      searchProducts: jest.fn().mockResolvedValue([mockProduct]),
-      findOne: jest.fn().mockImplementation((id: number) => {
-        if (id === 1) return Promise.resolve(mockProduct);
-        return Promise.reject(new NotFoundException(`Product #${id} not found`));
+    const mockProductsRepo = {
+      find: jest.fn().mockResolvedValue([mockProduct, mockPhoneProduct]),
+      findOne: jest.fn().mockImplementation(({ where }) => {
+        if (where.id === 1) return Promise.resolve(mockProduct);
+        if (where.id === 2) return Promise.resolve(mockPhoneProduct);
+        return Promise.resolve(null);
       }),
-      create: jest.fn().mockImplementation((dto) => Promise.resolve({ id: 1, ...dto })),
-      processProductBatch: jest.fn().mockResolvedValue({ success: true, processed: 2 }),
-      remove: jest.fn().mockResolvedValue(undefined),
-      findAllCategories: jest.fn().mockResolvedValue([mockCategory]),
-      findCategory: jest.fn().mockImplementation((id: number) => {
-        if (id === 1) return Promise.resolve(mockCategory);
-        return Promise.reject(new NotFoundException(`Category #${id} not found`));
+      create: jest.fn((dto) => dto),
+      save: jest.fn((p) => Promise.resolve({ ...p, id: 1 })),
+      remove: jest.fn().mockResolvedValue(mockProduct),
+    };
+
+    const mockCategoriesRepo = {
+      find: jest.fn().mockResolvedValue([mockCategory]),
+      findOne: jest.fn().mockImplementation(({ where }) => {
+        if (where.id === 1) return Promise.resolve(mockCategory);
+        return Promise.resolve(null);
       }),
-      getCategoryTree: jest.fn().mockResolvedValue({ id: 1, name: 'Electronics', children: [] }),
-      createCategory: jest.fn().mockImplementation((dto) => Promise.resolve({ id: 1, ...dto })),
+      create: jest.fn((dto) => dto),
+      save: jest.fn((c) => Promise.resolve({ ...c, id: 1 })),
+    };
+
+    const mockCacheManager = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [ProductsController, CategoriesController],
       providers: [
-        {
-          provide: ProductsService,
-          useValue: mockProductsService,
-        },
+        ProductsService,
         {
           provide: getRepositoryToken(Product),
-          useValue: {},
+          useValue: mockProductsRepo,
         },
         {
           provide: getRepositoryToken(Category),
-          useValue: {},
+          useValue: mockCategoriesRepo,
         },
         {
           provide: CACHE_MANAGER,
-          useValue: {},
+          useValue: mockCacheManager,
         },
       ],
     }).compile();
@@ -76,6 +112,7 @@ describe('ProductsController & CategoriesController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
 
+    cacheManager = moduleFixture.get(CACHE_MANAGER);
     productsService = moduleFixture.get(ProductsService);
   });
 
@@ -96,13 +133,26 @@ describe('ProductsController & CategoriesController (e2e)', () => {
         });
     });
 
-    it('GET /products/search?q=laptop - should return search results', () => {
-      return request(app.getHttpServer())
+    it('GET /products/search?q=laptop - should return cached or searched results', async () => {
+      cacheManager.get.mockResolvedValueOnce([mockProduct]);
+      await request(app.getHttpServer())
         .get('/products/search?q=laptop')
-        .expect(200)
-        .expect((res) => {
-          expect(productsService.searchProducts).toHaveBeenCalledWith('laptop');
-        });
+        .expect(200);
+
+      cacheManager.get.mockResolvedValueOnce(null);
+      await request(app.getHttpServer())
+        .get('/products/search?q=laptop')
+        .expect(200);
+
+      cacheManager.get.mockResolvedValueOnce(null);
+      await request(app.getHttpServer())
+        .get('/products/search?q=Smartphone')
+        .expect(200);
+
+      cacheManager.get.mockResolvedValueOnce(null);
+      await request(app.getHttpServer())
+        .get('/products/search')
+        .expect(200);
     });
 
     it('GET /products/1 - should return product by id', () => {
@@ -130,14 +180,35 @@ describe('ProductsController & CategoriesController (e2e)', () => {
         });
     });
 
-    it('POST /products/batch - should process batch', () => {
-      return request(app.getHttpServer())
+    it('POST /products/batch - should process batch with success and failure items', async () => {
+      await request(app.getHttpServer())
+        .post('/products/batch')
+        .send({ productIds: [1, 99] })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.processed).toBe(1);
+          expect(res.body.failedProductIds).toContain(99);
+        });
+
+      await request(app.getHttpServer())
         .post('/products/batch')
         .send({ productIds: [1, 2] })
         .expect(201)
         .expect((res) => {
           expect(res.body.processed).toBe(2);
+          expect(res.body.failedProductIds).toBeUndefined();
         });
+    });
+
+    it('POST /products/batch - should return 400 when invalid payload is sent', () => {
+      return request(app.getHttpServer())
+        .post('/products/batch')
+        .send({})
+        .expect(400);
+    });
+
+    it('updateStock validation - should throw BadRequestException on negative stock', async () => {
+      await expect(productsService.updateStock(1, -5)).rejects.toThrow();
     });
 
     it('DELETE /products/1 - should delete product', () => {
@@ -166,12 +237,19 @@ describe('ProductsController & CategoriesController (e2e)', () => {
         });
     });
 
+    it('GET /categories/99 - should return 404 when category not found', () => {
+      return request(app.getHttpServer())
+        .get('/categories/99')
+        .expect(404);
+    });
+
     it('GET /categories/1/tree - should return category tree', () => {
       return request(app.getHttpServer())
         .get('/categories/1/tree')
         .expect(200)
         .expect((res) => {
           expect(res.body.children).toBeDefined();
+          expect(res.body.parent).toBeDefined();
         });
     });
 

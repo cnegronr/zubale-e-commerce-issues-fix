@@ -14,5 +14,13 @@
     "!src/**/*.entity.ts",
     "!src/**/*.interface.ts"
   ],
-  "coverageDirectory": "./coverage-integration"
+  "coverageDirectory": "./coverage-integration",
+  "coverageThreshold": {
+    "global": {
+      "branches": 100,
+      "functions": 100,
+      "lines": 100,
+      "statements": 100
+    }
+  }
 }

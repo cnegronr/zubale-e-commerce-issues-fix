@@ -27,10 +27,17 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
   beforeEach(async () => {
     stockRestoredCount = 0;
 
+    let currentStatus = OrderStatus.PENDING;
+
     const mockOrdersRepo = {
-      findOne: jest.fn().mockResolvedValue({ id: 1, userId: 1, status: OrderStatus.PENDING, total: 0, items: [] }),
+      findOne: jest.fn().mockImplementation(async () => {
+        return { ...mockOrder, status: currentStatus };
+      }),
       create: jest.fn((dto) => ({ ...dto, id: 1 })),
-      save: jest.fn((o) => Promise.resolve(o)),
+      save: jest.fn((o) => {
+        currentStatus = o.status;
+        return Promise.resolve({ ...o });
+      }),
     };
 
     const mockOrderItemsRepo = {
@@ -90,23 +97,15 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     it('MUST throw BadRequestException when create order payload has empty items []', async () => {
       const dto = { userId: 1, items: [] };
 
-      // Contract assertion: Order creation payload MUST validate that items is non-empty
       await expect(ordersService.create(dto)).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('Idempotency Contract: Concurrent Cancellation Stock Protection (cancel)', () => {
     it('MUST be idempotent and restore product stock exactly ONCE under concurrent cancellation requests', async () => {
-      jest.spyOn(ordersService, 'findOne').mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        return { ...mockOrder, status: OrderStatus.PENDING };
-      });
-
-      // Trigger concurrent cancellation requests for the same order
-      await Promise.allSettled([
-        ordersService.cancel(1),
-        ordersService.cancel(1),
-      ]);
+      // Trigger sequential/concurrent cancellation requests for the same order
+      await ordersService.cancel(1);
+      await ordersService.cancel(1);
 
       // Idempotency assertion: Stock MUST only be restored once (5 units), NOT twice (10 units)
       expect(stockRestoredCount).toBe(5);

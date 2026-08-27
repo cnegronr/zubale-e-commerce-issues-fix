@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { UsersService } from '../../../src/users/users.service';
 import { User } from '../../../src/users/user.entity';
 
@@ -115,6 +115,25 @@ describe('UsersService', () => {
       expect(repository.create).toHaveBeenCalledWith(dto);
       expect(repository.save).toHaveBeenCalledWith(mockUser);
       expect(cacheManager.del).toHaveBeenCalledWith('users:all');
+    });
+
+    it('should throw ConflictException when duplicate email error 23505 occurs', async () => {
+      const dto = { email: 'existing@example.com', name: 'Existing User' };
+      repository.create.mockReturnValue(dto);
+      const dbError: any = new Error('duplicate key');
+      dbError.code = '23505';
+      repository.save.mockRejectedValue(dbError);
+
+      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+    });
+
+    it('should rethrow unknown errors from repository.save', async () => {
+      const dto = { email: 'err@example.com', name: 'User' };
+      repository.create.mockReturnValue(dto);
+      const dbError = new Error('Database down');
+      repository.save.mockRejectedValue(dbError);
+
+      await expect(service.create(dto)).rejects.toThrow('Database down');
     });
   });
 

@@ -129,6 +129,10 @@ describe('ProductsService', () => {
       expect(result.stock).toBe(20);
       expect(productsRepository.save).toHaveBeenCalled();
     });
+
+    it('should throw BadRequestException when quantity is negative', async () => {
+      await expect(service.updateStock(1, -5)).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('remove', () => {
@@ -147,7 +151,7 @@ describe('ProductsService', () => {
       cacheManager.get.mockResolvedValue([mockProduct]);
       const result = await service.searchProducts('laptop');
       expect(result).toEqual([mockProduct]);
-      expect(cacheManager.get).toHaveBeenCalledWith('product-search');
+      expect(cacheManager.get).toHaveBeenCalledWith('product-search:laptop');
       expect(productsRepository.find).not.toHaveBeenCalled();
     });
 
@@ -161,7 +165,16 @@ describe('ProductsService', () => {
 
       const result = await service.searchProducts('laptop');
       expect(result).toEqual([product1]);
-      expect(cacheManager.set).toHaveBeenCalledWith('product-search', [product1], 60000);
+      expect(cacheManager.set).toHaveBeenCalledWith('product-search:laptop', [product1], 60000);
+    });
+
+    it('should fallback to empty string search when query is undefined', async () => {
+      cacheManager.get.mockResolvedValue(null);
+      productsRepository.find.mockResolvedValue([mockProduct]);
+
+      const result = await service.searchProducts(undefined as any);
+      expect(result).toEqual([mockProduct]);
+      expect(cacheManager.set).toHaveBeenCalledWith('product-search:', [mockProduct], 60000);
     });
   });
 
@@ -232,17 +245,17 @@ describe('ProductsService', () => {
       productsRepository.save.mockResolvedValue(mockProduct);
 
       const result = await service.processProductBatch([1, 2]);
-      expect(result).toEqual({ success: true, processed: 2 });
+      expect(result).toEqual({ success: true, processed: 2, failedProductIds: undefined });
     });
 
-    it('should handle errors for individual items in batch', async () => {
+    it('should handle errors for individual items in batch and report failed IDs', async () => {
       jest.spyOn(service, 'findOne').mockRejectedValueOnce(new NotFoundException('Product #1 not found'));
 
       const result = await service.processProductBatch([1]);
-      expect(result).toEqual({ success: true, processed: 0 });
+      expect(result).toEqual({ success: true, processed: 0, failedProductIds: [1] });
     });
 
-    it('should throw BadRequestException if outer processing fails', async () => {
+    it('should throw BadRequestException if outer processing fails or invalid payload is passed', async () => {
       await expect(service.processProductBatch(null as any)).rejects.toThrow(BadRequestException);
     });
   });

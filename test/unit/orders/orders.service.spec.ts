@@ -168,6 +168,11 @@ describe('OrdersService', () => {
       expect(productsService.updateStock).toHaveBeenCalledWith(1, 8);
     });
 
+    it('should throw BadRequestException if order items is empty', async () => {
+      const dto = { userId: 1, items: [] };
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw BadRequestException if product stock is insufficient', async () => {
       usersService.findOne.mockResolvedValue(mockUser);
       ordersRepository.create.mockReturnValue({ userId: 1, status: OrderStatus.PENDING });
@@ -220,7 +225,14 @@ describe('OrdersService', () => {
       expect(productsService.updateStock).toHaveBeenCalledWith(1, 12);
     });
 
-    it('should throw BadRequestException if order is not pending', async () => {
+    it('should return already cancelled order idempotently without restoring stock again', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CANCELLED });
+      const result = await service.cancel(1);
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+      expect(productsService.updateStock).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if order is not pending or cancelled (e.g. confirmed)', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED });
       await expect(service.cancel(1)).rejects.toThrow(BadRequestException);
     });
@@ -232,13 +244,17 @@ describe('OrdersService', () => {
       await expect(service.getOrderWithFullDetails(99)).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw TypeError due to circular structure in current implementation', async () => {
+    it('should return clean enriched JSON without circular references', async () => {
       ordersRepository.findOne.mockResolvedValue({
         id: 1,
-        user: { id: 1, name: 'User' },
+        user: { id: 1, name: 'User', email: 'user@example.com', isActive: true, createdAt: new Date() },
+        items: [],
       });
 
-      await expect(service.getOrderWithFullDetails(1)).rejects.toThrow(TypeError);
+      const result = await service.getOrderWithFullDetails(1);
+      expect(result.id).toBe(1);
+      expect(result.user.name).toBe('User');
+      expect(result.user.latestOrder).toBeUndefined();
     });
   });
 });

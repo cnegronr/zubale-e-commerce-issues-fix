@@ -1,27 +1,43 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { OrdersService } from '../../src/orders/orders.service';
+import { OrdersController } from '../../src/orders/orders.controller';
 import { Order, OrderStatus } from '../../src/orders/order.entity';
 import { OrderItem } from '../../src/orders/order-item.entity';
 import { UsersService } from '../../src/users/users.service';
 import { ProductsService } from '../../src/products/products.service';
 
-describe('Orders Contract & Resiliency Tests', () => {
+describe('Orders Contract & Integration Tests', () => {
   let ordersService: OrdersService;
-  let ordersRepository: any;
-  let orderItemsRepository: any;
-  let usersService: jest.Mocked<UsersService>;
+  let ordersController: OrdersController;
   let productsService: jest.Mocked<ProductsService>;
+  let usersService: jest.Mocked<UsersService>;
+  let ordersRepository: any;
 
-  const mockOrder: any = {
+  const mockProduct = {
+    id: 1,
+    name: 'Test Product',
+    price: 50,
+    stock: 10,
+    description: 'Desc',
+    isAvailable: true,
+    categoryId: 1,
+  };
+
+  const mockUser = {
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.com',
+  };
+
+  const mockOrder = {
     id: 1,
     userId: 1,
     status: OrderStatus.PENDING,
     total: 100,
-    createdAt: new Date(),
-    user: { id: 1, name: 'User 1' },
+    user: mockUser,
     items: [
       {
         id: 1,
@@ -29,43 +45,34 @@ describe('Orders Contract & Resiliency Tests', () => {
         productId: 1,
         quantity: 2,
         price: 50,
-        product: { id: 1, name: 'Product 1', stock: 10 },
+        product: mockProduct,
       },
     ],
   };
 
-  const mockProduct: any = {
-    id: 1,
-    name: 'Product 1',
-    stock: 10,
-    price: 50,
-  };
-
-  const mockUser: any = {
-    id: 1,
-    name: 'User 1',
-  };
-
   beforeEach(async () => {
     const mockOrdersRepo = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
+      find: jest.fn().mockResolvedValue([mockOrder]),
+      findOne: jest.fn().mockImplementation(({ where }) => {
+        if (where && where.id === 1) return Promise.resolve({ ...mockOrder, status: OrderStatus.PENDING });
+        return Promise.resolve(null);
+      }),
+      create: jest.fn((dto) => ({ ...dto, id: 1 })),
+      save: jest.fn((order) => Promise.resolve(order)),
     };
 
     const mockOrderItemsRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
+      create: jest.fn((dto) => dto),
+      save: jest.fn((item) => Promise.resolve(item)),
     };
 
     const mockUsersService = {
-      findOne: jest.fn(),
+      findOne: jest.fn().mockResolvedValue(mockUser),
     };
 
     const mockProductsService = {
-      findOne: jest.fn(),
-      updateStock: jest.fn(),
+      findOne: jest.fn().mockResolvedValue(mockProduct),
+      updateStock: jest.fn().mockResolvedValue({ ...mockProduct, stock: 8 }),
     };
 
     const mockCacheManager = {
@@ -74,6 +81,7 @@ describe('Orders Contract & Resiliency Tests', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
+      controllers: [OrdersController],
       providers: [
         OrdersService,
         {
@@ -100,27 +108,22 @@ describe('Orders Contract & Resiliency Tests', () => {
     }).compile();
 
     ordersService = module.get<OrdersService>(OrdersService);
+    ordersController = module.get<OrdersController>(OrdersController);
+    productsService = module.get(ProductsService) as any;
+    usersService = module.get(UsersService) as any;
     ordersRepository = module.get(getRepositoryToken(Order));
-    orderItemsRepository = module.get(getRepositoryToken(OrderItem));
-    usersService = module.get(UsersService);
-    productsService = module.get(ProductsService);
   });
 
   describe('API Contract: JSON Serialization Guarantee (getOrderWithFullDetails)', () => {
     it('MUST return a clean JSON serializable response without circular reference errors', async () => {
-      ordersRepository.findOne.mockResolvedValue({
-        id: 1,
-        status: OrderStatus.PENDING,
-        total: 100,
-        user: { id: 1, name: 'John Doe', email: 'john@example.com' },
-        items: [],
-      });
-
       const response = await ordersService.getOrderWithFullDetails(1);
 
-      // Contract assertion: Response MUST be serializable without throwing TypeError: Converting circular structure to JSON
       expect(() => JSON.stringify(response)).not.toThrow();
-      expect(response.user.latestOrder).toBeDefined();
+      expect(response.user.latestOrder).toBeUndefined();
+    });
+
+    it('throws NotFoundException when order full details is not found', async () => {
+      await expect(ordersService.getOrderWithFullDetails(99)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -128,32 +131,62 @@ describe('Orders Contract & Resiliency Tests', () => {
     it('MUST await stock updates before returning the created order', async () => {
       let stockUpdateCompleted = false;
 
-      usersService.findOne.mockResolvedValue(mockUser);
-      ordersRepository.create.mockReturnValue({ userId: 1, status: OrderStatus.PENDING });
-      ordersRepository.save.mockResolvedValue({ id: 1, userId: 1, status: OrderStatus.PENDING });
-      productsService.findOne.mockResolvedValue(mockProduct);
-      orderItemsRepository.create.mockReturnValue({ orderId: 1, productId: 1, quantity: 2, price: 50 });
-      orderItemsRepository.save.mockResolvedValue({});
-      jest.spyOn(ordersService, 'findOne').mockResolvedValue(mockOrder);
-
-      // Mock updateStock with a 50ms async delay
       productsService.updateStock.mockImplementation(async () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
         stockUpdateCompleted = true;
-        return { ...mockProduct, stock: 8 };
+        return { ...mockProduct, stock: 8 } as any;
       });
 
-      const dto = { userId: 1, items: [{ productId: 1, quantity: 2 }] };
+      const dto = {
+        userId: 1,
+        items: [{ productId: 1, quantity: 2 }],
+      };
+
       await ordersService.create(dto);
 
-      // Contract assertion: After create() finishes, stock update MUST be completed
       expect(stockUpdateCompleted).toBe(true);
+    });
+
+    it('throws BadRequestException when order creation has insufficient stock', async () => {
+      productsService.findOne.mockResolvedValueOnce({ ...mockProduct, stock: 1 } as any);
+      await expect(ordersService.create({ userId: 1, items: [{ productId: 1, quantity: 5 }] })).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when order creation has empty items', async () => {
+      await expect(ordersService.create({ userId: 1, items: [] })).rejects.toThrow(BadRequestException);
     });
   });
 
-  describe('Domain Rule: Order Cancellation Contract (cancel)', () => {
-    it('MUST prevent cancellation of orders that are already CONFIRMED', async () => {
-      jest.spyOn(ordersService, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED });
+  describe('OrdersController Integration', () => {
+    it('findAll with and without userId query param', async () => {
+      expect(await ordersController.findAll()).toEqual([mockOrder]);
+      expect(await ordersController.findAll('1')).toEqual([mockOrder]);
+      expect(await ordersService.findByUser(1)).toEqual([mockOrder]);
+    });
+
+    it('findOne and getFullDetails endpoints', async () => {
+      expect(await ordersController.findOne(1)).toEqual(mockOrder);
+      expect(await ordersController.getFullDetails(1)).toBeDefined();
+      await expect(ordersService.findOne(99)).rejects.toThrow(NotFoundException);
+    });
+
+    it('create, updateStatus, processPayment, cancel endpoints', async () => {
+      expect(await ordersController.create({ userId: 1, items: [{ productId: 1, quantity: 2 }] })).toBeDefined();
+      expect(await ordersController.updateStatus(1, OrderStatus.CONFIRMED)).toBeDefined();
+      
+      jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      expect(await ordersController.processPayment(1)).toBeDefined();
+
+      const pendingOrder = { ...mockOrder, status: OrderStatus.PENDING };
+      ordersRepository.findOne.mockResolvedValueOnce(pendingOrder);
+      expect(await ordersController.cancel(1)).toBeDefined();
+
+      const cancelledOrder = { ...mockOrder, status: OrderStatus.CANCELLED };
+      ordersRepository.findOne.mockResolvedValueOnce(cancelledOrder);
+      expect(await ordersService.cancel(1)).toEqual(cancelledOrder);
+
+      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      ordersRepository.findOne.mockResolvedValueOnce(confirmedOrder);
       await expect(ordersService.cancel(1)).rejects.toThrow(BadRequestException);
     });
   });

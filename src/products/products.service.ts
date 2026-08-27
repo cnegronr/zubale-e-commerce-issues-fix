@@ -39,6 +39,9 @@ export class ProductsService {
   }
 
   async updateStock(id: number, quantity: number): Promise<Product> {
+    if (quantity < 0) {
+      throw new BadRequestException('Stock quantity cannot be negative');
+    }
     const product = await this.findOne(id);
     product.stock = quantity;
     return this.productsRepository.save(product);
@@ -50,7 +53,8 @@ export class ProductsService {
   }
 
   async searchProducts(query: string): Promise<Product[]> {
-    const cacheKey = 'product-search';
+    const searchQuery = query || '';
+    const cacheKey = `product-search:${searchQuery.toLowerCase().trim()}`;
     const cached = await this.cacheManager.get<Product[]>(cacheKey);
     if (cached) {
       return cached;
@@ -58,8 +62,8 @@ export class ProductsService {
 
     const products = await this.productsRepository.find();
     const results = products.filter(p => 
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      (p.description || '').toLowerCase().includes(query.toLowerCase())
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     await this.cacheManager.set(cacheKey, results, 60000);
@@ -98,7 +102,7 @@ export class ProductsService {
       children: [],
     };
 
-    if (category.parentId) {
+    if (category.parentId && category.parent) {
       tree.parent = this.buildCategoryTree(category.parent);
     }
 
@@ -109,9 +113,10 @@ export class ProductsService {
     return tree;
   }
 
-  async processProductBatch(productIds: number[]): Promise<{ success: boolean; processed: number }> {
+  async processProductBatch(productIds: number[]): Promise<{ success: boolean; processed: number; failedProductIds?: number[] }> {
     let processed = 0;
-    
+    const failedProductIds: number[] = [];
+
     try {
       for (const id of productIds) {
         try {
@@ -120,13 +125,17 @@ export class ProductsService {
           await this.productsRepository.save(product);
           processed++;
         } catch (error) {
-          console.log('Error processing product');
+          failedProductIds.push(id);
         }
       }
     } catch (error) {
       throw new BadRequestException('Batch processing failed');
     }
 
-    return { success: true, processed };
+    return {
+      success: true,
+      processed,
+      failedProductIds: failedProductIds.length > 0 ? failedProductIds : undefined,
+    };
   }
 }

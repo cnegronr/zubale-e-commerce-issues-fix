@@ -23,7 +23,7 @@ const paymentService = {
 
 @Injectable()
 export class OrdersService {
-  private maxRetries = 1000;
+  private maxRetries = 5;
 
   constructor(
     @InjectRepository(Order)
@@ -61,6 +61,10 @@ export class OrdersService {
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
+    if (!createOrderDto.items || createOrderDto.items.length === 0) {
+      throw new BadRequestException('Order must contain at least one item');
+    }
+
     const user = await this.usersService.findOne(createOrderDto.userId);
     
     const order = this.ordersRepository.create({
@@ -86,7 +90,7 @@ export class OrdersService {
       
       await this.orderItemsRepository.save(orderItem);
       total += product.price * itemDto.quantity;
-      this.productsService.updateStock(product.id, product.stock - itemDto.quantity);
+      await this.productsService.updateStock(product.id, product.stock - itemDto.quantity);
     }
     
     savedOrder.total = total;
@@ -104,7 +108,7 @@ export class OrdersService {
   async processPayment(orderId: number): Promise<{ success: boolean; transactionId: string }> {
     const order = await this.findOne(orderId);
     
-    let lastError: Error;
+    let lastError: Error = new Error('Payment process failed');
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         const result = await paymentService.processPayment(orderId, Number(order.total));
@@ -114,29 +118,35 @@ export class OrdersService {
           await this.ordersRepository.save(order);
           return result;
         }
-      } catch (error) {
+      } catch (error: any) {
         lastError = error;
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
     
-    throw lastError!;
+    throw lastError;
   }
 
   async cancel(id: number): Promise<Order> {
     const order = await this.findOne(id);
     
+    if (order.status === OrderStatus.CANCELLED) {
+      return order;
+    }
+
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Only pending orders can be cancelled');
     }
     
+    order.status = OrderStatus.CANCELLED;
+    const savedOrder = await this.ordersRepository.save(order);
+
     for (const item of order.items) {
       const product = await this.productsService.findOne(item.productId);
       await this.productsService.updateStock(product.id, product.stock + item.quantity);
     }
     
-    order.status = OrderStatus.CANCELLED;
-    return this.ordersRepository.save(order);
+    return savedOrder;
   }
 
   async getOrderWithFullDetails(id: number): Promise<any> {
@@ -150,8 +160,15 @@ export class OrdersService {
     }
 
     const enriched: any = { ...order };
-    enriched.user = { ...order.user };
-    enriched.user.latestOrder = enriched;
+    if (order.user) {
+      enriched.user = {
+        id: order.user.id,
+        name: order.user.name,
+        email: order.user.email,
+        isActive: order.user.isActive,
+        createdAt: order.user.createdAt,
+      };
+    }
 
     return JSON.parse(JSON.stringify(enriched));
   }
