@@ -13,6 +13,7 @@ This project is a **NestJS e-commerce backend code challenge**. The application 
   - ✅ **Do focus on best practices**, robustness, clean NestJS design patterns, data integrity, and optimal error handling.
 - **Prompt Files Management Directive**:
   - ⚠️ **ALWAYS ask the user for explicit confirmation before generating any new prompt file (`prompt_xxx.md`) in `docs/prompts`.** Never create a `prompt_xxx.md` file automatically without prior user consent.
+  - 📌 **Separate Numbering**: Prompt files in `internal_prompts/` and `docs/prompts/` maintain separate incremental numberings starting from `001`.
 
 ---
 
