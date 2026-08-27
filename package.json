@@ -18,8 +18,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e:cov": "jest --config ./test/jest-e2e.json --coverage",
     "test:integration": "jest --config ./test/jest-integration.json",
-    "test:all": "pnpm test:cov && pnpm test:integration && pnpm test:e2e"
+    "test:integration:cov": "jest --config ./test/jest-integration.json --coverage",
+    "test:all": "pnpm test:cov && pnpm test:integration:cov && pnpm test:e2e:cov"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",
