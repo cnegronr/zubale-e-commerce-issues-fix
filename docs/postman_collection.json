@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b3e9a7c1-9f82-4e5d-b2a1-8c7e6f5d4c3b",
     "name": "Product Engineer Challenge API",
-    "description": "Postman Collection for testing all API endpoints, edge cases, and business scenarios of the Product Engineer Challenge (NestJS, PostgreSQL, Redis).",
+    "description": "Postman Collection for testing all API endpoints, happy paths, edge cases, and resiliency scenarios of the Product Engineer Challenge (NestJS, PostgreSQL, Redis).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -24,6 +24,11 @@
     {
       "key": "categoryId",
       "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "subcategoryId",
+      "value": "2",
       "type": "string"
     },
     {
@@ -97,6 +102,28 @@
           }
         },
         {
+          "name": "Create Duplicate Email User (409 Conflict Validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test.user@example.com\",\n  \"name\": \"Duplicate User\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Edge case: Attempts to register a user with an existing email to test clean domain exception handling (ConflictException 409)."
+          }
+        },
+        {
           "name": "Delete User",
           "request": {
             "method": "DELETE",
@@ -154,7 +181,7 @@
           }
         },
         {
-          "name": "Create Category",
+          "name": "Create Root Category",
           "event": [
             {
               "listen": "test",
@@ -184,7 +211,41 @@
               "host": ["{{baseUrl}}"],
               "path": ["categories"]
             },
-            "description": "Creates a new category."
+            "description": "Creates a new root category."
+          }
+        },
+        {
+          "name": "Create Subcategory (with parentId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('subcategoryId', jsonData.id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Laptops\",\n  \"description\": \"Portable workstation computers\",\n  \"parentId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"]
+            },
+            "description": "Creates a child category linking parentId to test recursive category trees."
           }
         }
       ]
@@ -221,7 +282,7 @@
                 }
               ]
             },
-            "description": "Searches products by term."
+            "description": "Searches products by term using query-isolated cache keys."
           }
         },
         {
@@ -283,14 +344,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productIds\": [1, 2, 3]\n}"
+              "raw": "{\n  \"productIds\": [1, 2, 9999]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/products/batch",
               "host": ["{{baseUrl}}"],
               "path": ["products", "batch"]
             },
-            "description": "Processes batch of products."
+            "description": "Processes batch of products including reporting of failed IDs."
           }
         },
         {
@@ -357,7 +418,7 @@
           }
         },
         {
-          "name": "Get Full Order Details (Enriched)",
+          "name": "Get Full Order Details (Enriched & Non-Circular)",
           "request": {
             "method": "GET",
             "header": [],
@@ -366,7 +427,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["orders", "{{orderId}}", "full"]
             },
-            "description": "Fetches order with user and items details."
+            "description": "Fetches order with user and items details (validating non-circular JSON structure)."
           }
         },
         {
@@ -404,6 +465,28 @@
           }
         },
         {
+          "name": "Create Empty Items Order (400 Bad Request Validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"items\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "description": "Edge case: Attempts to create an order with empty items array to test 400 Bad Request validation."
+          }
+        },
+        {
           "name": "Process Order Payment",
           "request": {
             "method": "POST",
@@ -413,7 +496,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["orders", "{{orderId}}", "pay"]
             },
-            "description": "Processes payment for an order."
+            "description": "Processes payment for an order with bounded retry limits."
           }
         },
         {
@@ -439,7 +522,7 @@
           }
         },
         {
-          "name": "Cancel Order",
+          "name": "Cancel Order (Idempotent Stock Restoration)",
           "request": {
             "method": "POST",
             "header": [],
@@ -448,7 +531,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["orders", "{{orderId}}", "cancel"]
             },
-            "description": "Cancels a pending order and restores stock."
+            "description": "Cancels a pending order and restores stock idempotently."
           }
         }
       ]
