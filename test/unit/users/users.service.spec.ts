@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { NotFoundException } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { User } from './user.entity';
+import { UsersService } from '../../../src/users/users.service';
+import { User } from '../../../src/users/user.entity';
 
 describe('UsersService', () => {
   let service: UsersService;

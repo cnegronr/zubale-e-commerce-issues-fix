@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OrdersController } from './orders.controller';
-import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus } from './order.entity';
+import { OrdersController } from '../../../src/orders/orders.controller';
+import { OrdersService } from '../../../src/orders/orders.service';
+import { CreateOrderDto } from '../../../src/orders/dto/create-order.dto';
+import { OrderStatus } from '../../../src/orders/order.entity';
 
 describe('OrdersController', () => {
   let controller: OrdersController;

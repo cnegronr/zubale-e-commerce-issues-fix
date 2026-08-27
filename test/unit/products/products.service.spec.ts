@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { ProductsService } from './products.service';
-import { Product } from './product.entity';
-import { Category } from './category.entity';
+import { ProductsService } from '../../../src/products/products.service';
+import { Product } from '../../../src/products/product.entity';
+import { Category } from '../../../src/products/category.entity';
 
 describe('ProductsService', () => {
   let service: ProductsService;

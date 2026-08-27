@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProductsController, CategoriesController } from './products.controller';
-import { ProductsService } from './products.service';
-import { CreateProductDto, CreateCategoryDto } from './dto/create-product.dto';
+import { ProductsController, CategoriesController } from '../../../src/products/products.controller';
+import { ProductsService } from '../../../src/products/products.service';
+import { CreateProductDto, CreateCategoryDto } from '../../../src/products/dto/create-product.dto';
 
 describe('ProductsController & CategoriesController', () => {
   let productsController: ProductsController;

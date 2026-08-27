@@ -2,11 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { OrdersService } from './orders.service';
-import { Order, OrderStatus } from './order.entity';
-import { OrderItem } from './order-item.entity';
-import { UsersService } from '../users/users.service';
-import { ProductsService } from '../products/products.service';
+import { OrdersService } from '../../../src/orders/orders.service';
+import { Order, OrderStatus } from '../../../src/orders/order.entity';
+import { OrderItem } from '../../../src/orders/order-item.entity';
+import { UsersService } from '../../../src/users/users.service';
+import { ProductsService } from '../../../src/products/products.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
