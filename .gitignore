@@ -28,7 +28,7 @@ pnpm-debug.log*
 
 # Test
 coverage/
-
+coverage-integration
 # Database
 *.sqlite
 /docs/prompts/
