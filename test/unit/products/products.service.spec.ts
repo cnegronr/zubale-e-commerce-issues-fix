@@ -108,15 +108,24 @@ describe('ProductsService', () => {
   });
 
   describe('create', () => {
-    it('should create and save a product', async () => {
+    it('should create and save a product with valid categoryId', async () => {
       const dto = { name: 'Laptop', price: 1500, stock: 10, categoryId: 1 };
+      jest.spyOn(service, 'findCategory').mockResolvedValue(mockCategory);
       productsRepository.create.mockReturnValue(mockProduct);
       productsRepository.save.mockResolvedValue(mockProduct);
 
       const result = await service.create(dto as any);
       expect(result).toEqual(mockProduct);
+      expect(service.findCategory).toHaveBeenCalledWith(1);
       expect(productsRepository.create).toHaveBeenCalledWith(dto);
       expect(productsRepository.save).toHaveBeenCalledWith(mockProduct);
+    });
+
+    it('should throw NotFoundException if categoryId does not exist', async () => {
+      const dto = { name: 'Laptop', price: 1500, stock: 10, categoryId: 99 };
+      jest.spyOn(service, 'findCategory').mockRejectedValue(new NotFoundException('Category #99 not found'));
+
+      await expect(service.create(dto as any)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -205,15 +214,25 @@ describe('ProductsService', () => {
   });
 
   describe('createCategory', () => {
-    it('should create and save a category', async () => {
-      const dto = { name: 'Electronics' };
+    it('should create and save a category with valid parentId', async () => {
+      const dto = { name: 'Laptops', parentId: 1 };
+      jest.spyOn(service, 'findCategory').mockResolvedValue(mockCategory);
       categoriesRepository.create.mockReturnValue(mockCategory);
       categoriesRepository.save.mockResolvedValue(mockCategory);
 
       const result = await service.createCategory(dto);
       expect(result).toEqual(mockCategory);
+      expect(service.findCategory).toHaveBeenCalledWith(1);
       expect(categoriesRepository.create).toHaveBeenCalledWith(dto);
       expect(categoriesRepository.save).toHaveBeenCalledWith(mockCategory);
+    });
+
+    it('should throw NotFoundException if parentId does not exist (e.g. parentId = 0)', async () => {
+      const dto = { name: 'Laptops', parentId: 0 };
+      jest.spyOn(service, 'findCategory').mockRejectedValue(new NotFoundException('Category #0 not found'));
+
+      await expect(service.createCategory(dto)).rejects.toThrow(NotFoundException);
+      expect(service.findCategory).toHaveBeenCalledWith(0);
     });
   });
 

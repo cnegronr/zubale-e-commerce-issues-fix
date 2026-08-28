@@ -66,36 +66,46 @@ export class OrdersService {
     }
 
     const user = await this.usersService.findOne(createOrderDto.userId);
-    
+
+    const itemMap = new Map<number, number>();
+    for (const itemDto of createOrderDto.items) {
+      const currentQty = itemMap.get(itemDto.productId) || 0;
+      itemMap.set(itemDto.productId, currentQty + itemDto.quantity);
+    }
+
+    const validatedItems: Array<{ product: any; quantity: number }> = [];
+    for (const [productId, totalQuantity] of itemMap.entries()) {
+      const product = await this.productsService.findOne(productId);
+      if (product.stock < totalQuantity) {
+        throw new BadRequestException(`Not enough stock for ${product.name}`);
+      }
+      validatedItems.push({ product, quantity: totalQuantity });
+    }
+
     const order = this.ordersRepository.create({
       userId: user.id,
       status: OrderStatus.PENDING,
+      total: 0,
     });
     const savedOrder = await this.ordersRepository.save(order);
-    
+
     let total = 0;
-    for (const itemDto of createOrderDto.items) {
-      const product = await this.productsService.findOne(itemDto.productId);
-      
-      if (product.stock < itemDto.quantity) {
-        throw new BadRequestException(`Not enough stock for ${product.name}`);
-      }
-      
+    for (const { product, quantity } of validatedItems) {
       const orderItem = this.orderItemsRepository.create({
         orderId: savedOrder.id,
         productId: product.id,
-        quantity: itemDto.quantity,
+        quantity,
         price: product.price,
       });
-      
+
       await this.orderItemsRepository.save(orderItem);
-      total += product.price * itemDto.quantity;
-      await this.productsService.updateStock(product.id, product.stock - itemDto.quantity);
+      total += product.price * quantity;
+      await this.productsService.updateStock(product.id, product.stock - quantity);
     }
-    
+
     savedOrder.total = total;
     await this.ordersRepository.save(savedOrder);
-    
+
     return this.findOne(savedOrder.id);
   }
 

@@ -161,11 +161,14 @@ describe('Products & Categories Integration & Edge-Case Tests', () => {
       expect(await categoriesController.findOne(1)).toEqual(mockCategory);
       expect(await categoriesController.getTree(1)).toBeDefined();
       expect(await categoriesController.create({ name: 'Category' })).toBeDefined();
+      expect(await categoriesController.create({ name: 'Subcategory', parentId: 1 })).toBeDefined();
     });
 
     it('Product / Category Not Found & Batch exceptions', async () => {
       await expect(productsService.findOne(99)).rejects.toThrow(NotFoundException);
       await expect(productsService.findCategory(99)).rejects.toThrow(NotFoundException);
+      await expect(productsService.create({ name: 'Invalid', price: 10, stock: 1, categoryId: 99 })).rejects.toThrow(NotFoundException);
+      await expect(productsService.createCategory({ name: 'Invalid', parentId: 99 })).rejects.toThrow(NotFoundException);
       await expect(productsService.processProductBatch(null as any)).rejects.toThrow(BadRequestException);
     });
   });

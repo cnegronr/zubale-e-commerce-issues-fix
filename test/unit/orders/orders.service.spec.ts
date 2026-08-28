@@ -12,17 +12,29 @@ describe('OrdersService', () => {
   let service: OrdersService;
   let ordersRepository: any;
   let orderItemsRepository: any;
-  let usersService: jest.Mocked<UsersService>;
-  let productsService: jest.Mocked<ProductsService>;
+  let usersService: any;
+  let productsService: any;
   let cacheManager: any;
+
+  const mockUser: any = {
+    id: 1,
+    name: 'John Doe',
+    email: 'john@example.com',
+  };
+
+  const mockProduct: any = {
+    id: 1,
+    name: 'Laptop',
+    price: 50,
+    stock: 10,
+  };
 
   const mockOrder: any = {
     id: 1,
     userId: 1,
     status: OrderStatus.PENDING,
     total: 100,
-    createdAt: new Date(),
-    user: { id: 1, name: 'User 1' },
+    user: mockUser,
     items: [
       {
         id: 1,
@@ -30,21 +42,9 @@ describe('OrdersService', () => {
         productId: 1,
         quantity: 2,
         price: 50,
-        product: { id: 1, name: 'Product 1', stock: 10 },
+        product: mockProduct,
       },
     ],
-  };
-
-  const mockProduct: any = {
-    id: 1,
-    name: 'Product 1',
-    stock: 10,
-    price: 50,
-  };
-
-  const mockUser: any = {
-    id: 1,
-    name: 'User 1',
   };
 
   beforeEach(async () => {
@@ -168,6 +168,21 @@ describe('OrdersService', () => {
       expect(productsService.updateStock).toHaveBeenCalledWith(1, 8);
     });
 
+    it('should aggregate duplicate productId items in request body', async () => {
+      usersService.findOne.mockResolvedValue(mockUser);
+      ordersRepository.create.mockReturnValue({ userId: 1, status: OrderStatus.PENDING });
+      ordersRepository.save.mockResolvedValue({ id: 1, userId: 1, status: OrderStatus.PENDING });
+      productsService.findOne.mockResolvedValue(mockProduct);
+      orderItemsRepository.create.mockReturnValue({ orderId: 1, productId: 1, quantity: 5, price: 50 });
+      orderItemsRepository.save.mockResolvedValue({});
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockOrder);
+
+      const dto = { userId: 1, items: [{ productId: 1, quantity: 2 }, { productId: 1, quantity: 3 }] };
+      const result = await service.create(dto);
+      expect(result).toEqual(mockOrder);
+      expect(productsService.updateStock).toHaveBeenCalledWith(1, 5);
+    });
+
     it('should throw BadRequestException if order items is empty', async () => {
       const dto = { userId: 1, items: [] };
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
@@ -175,86 +190,89 @@ describe('OrdersService', () => {
 
     it('should throw BadRequestException if product stock is insufficient', async () => {
       usersService.findOne.mockResolvedValue(mockUser);
-      ordersRepository.create.mockReturnValue({ userId: 1, status: OrderStatus.PENDING });
-      ordersRepository.save.mockResolvedValue({ id: 1, userId: 1, status: OrderStatus.PENDING });
       productsService.findOne.mockResolvedValue({ ...mockProduct, stock: 1 });
 
-      const dto = { userId: 1, items: [{ productId: 1, quantity: 2 }] };
+      const dto = { userId: 1, items: [{ productId: 1, quantity: 5 }] };
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('updateStatus', () => {
-    it('should update status and save order', async () => {
+    it('should update status of an order and save', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder });
       ordersRepository.save.mockImplementation(async (o: any) => o);
 
       const result = await service.updateStatus(1, OrderStatus.CONFIRMED);
       expect(result.status).toBe(OrderStatus.CONFIRMED);
+      expect(ordersRepository.save).toHaveBeenCalled();
     });
   });
 
   describe('processPayment', () => {
-    it('should confirm order and return result when payment succeeds', async () => {
+    it('should process payment successfully when random succeeds', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder });
-      ordersRepository.save.mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED });
-      jest.spyOn(Math, 'random').mockReturnValue(0.5); // Payment succeeds
+      ordersRepository.save.mockImplementation(async (o: any) => o);
+      jest.spyOn(Math, 'random').mockReturnValue(0.5);
 
       const result = await service.processPayment(1);
       expect(result.success).toBe(true);
+      expect(result.transactionId).toBeDefined();
       expect(ordersRepository.save).toHaveBeenCalled();
     });
 
-    it('should retry payment when payment service throws an error and throw lastError after maxRetries', async () => {
-      (service as any).maxRetries = 2;
+    it('should throw exception when payment retries exhaust', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder });
-      jest.spyOn(Math, 'random').mockReturnValue(0.05); // Payment fails
+      jest.spyOn(Math, 'random').mockReturnValue(0.05);
 
       await expect(service.processPayment(1)).rejects.toThrow('Payment service unavailable');
     });
   });
 
   describe('cancel', () => {
-    it('should cancel pending order and restore product stock', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.PENDING });
-      productsService.findOne.mockResolvedValue(mockProduct);
+    it('should cancel a pending order and restore product stock', async () => {
+      const pendingOrder = { ...mockOrder, status: OrderStatus.PENDING };
+      ordersRepository.findOne.mockResolvedValue(pendingOrder);
       ordersRepository.save.mockImplementation(async (o: any) => o);
+      productsService.findOne.mockResolvedValue(mockProduct);
 
       const result = await service.cancel(1);
       expect(result.status).toBe(OrderStatus.CANCELLED);
       expect(productsService.updateStock).toHaveBeenCalledWith(1, 12);
     });
 
-    it('should return already cancelled order idempotently without restoring stock again', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CANCELLED });
+    it('should return order idempotently if already cancelled without modifying stock again', async () => {
+      const cancelledOrder = { ...mockOrder, status: OrderStatus.CANCELLED };
+      ordersRepository.findOne.mockResolvedValue(cancelledOrder);
+
       const result = await service.cancel(1);
       expect(result.status).toBe(OrderStatus.CANCELLED);
       expect(productsService.updateStock).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if order is not pending or cancelled (e.g. confirmed)', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    it('should throw BadRequestException if order is not pending', async () => {
+      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      ordersRepository.findOne.mockResolvedValue(confirmedOrder);
+
       await expect(service.cancel(1)).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('getOrderWithFullDetails', () => {
-    it('should throw NotFoundException if order is not found', async () => {
-      ordersRepository.findOne.mockResolvedValue(null);
-      await expect(service.getOrderWithFullDetails(99)).rejects.toThrow(NotFoundException);
-    });
-
-    it('should return clean enriched JSON without circular references', async () => {
-      ordersRepository.findOne.mockResolvedValue({
-        id: 1,
-        user: { id: 1, name: 'User', email: 'user@example.com', isActive: true, createdAt: new Date() },
-        items: [],
-      });
+    it('should return enriched order with non-circular user object', async () => {
+      const fullOrder = {
+        ...mockOrder,
+        user: { ...mockUser, latestOrder: { id: 1 } },
+      };
+      ordersRepository.findOne.mockResolvedValue(fullOrder);
 
       const result = await service.getOrderWithFullDetails(1);
-      expect(result.id).toBe(1);
-      expect(result.user.name).toBe('User');
       expect(result.user.latestOrder).toBeUndefined();
+      expect(() => JSON.stringify(result)).not.toThrow();
+    });
+
+    it('should throw NotFoundException if full order not found', async () => {
+      ordersRepository.findOne.mockResolvedValue(null);
+      await expect(service.getOrderWithFullDetails(99)).rejects.toThrow(NotFoundException);
     });
   });
 });

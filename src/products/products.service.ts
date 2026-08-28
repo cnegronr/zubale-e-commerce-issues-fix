@@ -34,6 +34,9 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
+    if (createProductDto.categoryId !== undefined && createProductDto.categoryId !== null) {
+      await this.findCategory(createProductDto.categoryId);
+    }
     const product = this.productsRepository.create(createProductDto);
     return this.productsRepository.save(product);
   }
@@ -86,6 +89,9 @@ export class ProductsService {
   }
 
   async createCategory(dto: CreateCategoryDto): Promise<Category> {
+    if (dto.parentId !== undefined && dto.parentId !== null) {
+      await this.findCategory(dto.parentId);
+    }
     const category = this.categoriesRepository.create(dto);
     return this.categoriesRepository.save(category);
   }
