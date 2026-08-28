@@ -101,6 +101,13 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     });
   });
 
+  describe('Payment Processing Contract: Non-Pending Order Payment Rejection', () => {
+    it('MUST throw BadRequestException when attempting to process payment for a cancelled order', async () => {
+      await ordersService.cancel(1);
+      await expect(ordersService.processPayment(1)).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('Idempotency Contract: Concurrent Cancellation Stock Protection (cancel)', () => {
     it('MUST be idempotent and restore product stock exactly ONCE under concurrent cancellation requests', async () => {
       // Trigger sequential/concurrent cancellation requests for the same order

@@ -65,7 +65,12 @@ export class OrdersService {
       throw new BadRequestException('Order must contain at least one item');
     }
 
-    const user = await this.usersService.findOne(createOrderDto.userId);
+    let user: any;
+    try {
+      user = await this.usersService.findOne(createOrderDto.userId);
+    } catch (err) {
+      throw new BadRequestException(`User #${createOrderDto.userId} not found`);
+    }
 
     const itemMap = new Map<number, number>();
     for (const itemDto of createOrderDto.items) {
@@ -73,13 +78,29 @@ export class OrdersService {
       itemMap.set(itemDto.productId, currentQty + itemDto.quantity);
     }
 
+    const missingProductIds: number[] = [];
+    const insufficientStockItems: string[] = [];
     const validatedItems: Array<{ product: any; quantity: number }> = [];
+
     for (const [productId, totalQuantity] of itemMap.entries()) {
-      const product = await this.productsService.findOne(productId);
-      if (product.stock < totalQuantity) {
-        throw new BadRequestException(`Not enough stock for ${product.name}`);
+      try {
+        const product = await this.productsService.findOne(productId);
+        if (product.stock < totalQuantity) {
+          insufficientStockItems.push(`${product.name} (requested: ${totalQuantity}, available: ${product.stock})`);
+        } else {
+          validatedItems.push({ product, quantity: totalQuantity });
+        }
+      } catch (err) {
+        missingProductIds.push(productId);
       }
-      validatedItems.push({ product, quantity: totalQuantity });
+    }
+
+    if (missingProductIds.length > 0) {
+      throw new BadRequestException(`Products not found: #${missingProductIds.join(', #')}`);
+    }
+
+    if (insufficientStockItems.length > 0) {
+      throw new BadRequestException(`Not enough stock for: ${insufficientStockItems.join(', ')}`);
     }
 
     const order = this.ordersRepository.create({
@@ -117,6 +138,9 @@ export class OrdersService {
 
   async processPayment(orderId: number): Promise<{ success: boolean; transactionId: string }> {
     const order = await this.findOne(orderId);
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException(`Cannot process payment for an order with status "${order.status}"`);
+    }
     
     let lastError: Error = new Error('Payment process failed');
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {

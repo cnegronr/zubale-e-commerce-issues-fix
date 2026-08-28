@@ -183,17 +183,31 @@ describe('OrdersService', () => {
       expect(productsService.updateStock).toHaveBeenCalledWith(1, 5);
     });
 
+    it('should throw BadRequestException if userId is invalid', async () => {
+      usersService.findOne.mockRejectedValue(new NotFoundException('User #99 not found'));
+      const dto = { userId: 99, items: [{ productId: 1, quantity: 1 }] };
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw BadRequestException if order items is empty', async () => {
       const dto = { userId: 1, items: [] };
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if product stock is insufficient', async () => {
+    it('should throw BadRequestException listing missing product IDs when products do not exist', async () => {
+      usersService.findOne.mockResolvedValue(mockUser);
+      productsService.findOne.mockRejectedValue(new NotFoundException('Product #6 not found'));
+
+      const dto = { userId: 1, items: [{ productId: 6, quantity: 1 }, { productId: 7, quantity: 1 }] };
+      await expect(service.create(dto)).rejects.toThrow('Products not found: #6, #7');
+    });
+
+    it('should throw BadRequestException listing products with insufficient stock', async () => {
       usersService.findOne.mockResolvedValue(mockUser);
       productsService.findOne.mockResolvedValue({ ...mockProduct, stock: 1 });
 
       const dto = { userId: 1, items: [{ productId: 1, quantity: 5 }] };
-      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto)).rejects.toThrow('Not enough stock for: Laptop (requested: 5, available: 1)');
     });
   });
 
@@ -209,8 +223,9 @@ describe('OrdersService', () => {
   });
 
   describe('processPayment', () => {
-    it('should process payment successfully when random succeeds', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder });
+    it('should process payment successfully when order is pending and random succeeds', async () => {
+      const pendingOrder = { ...mockOrder, status: OrderStatus.PENDING };
+      jest.spyOn(service, 'findOne').mockResolvedValue(pendingOrder);
       ordersRepository.save.mockImplementation(async (o: any) => o);
       jest.spyOn(Math, 'random').mockReturnValue(0.5);
 
@@ -220,8 +235,16 @@ describe('OrdersService', () => {
       expect(ordersRepository.save).toHaveBeenCalled();
     });
 
+    it('should throw BadRequestException if order is not pending (e.g. cancelled or confirmed)', async () => {
+      const cancelledOrder = { ...mockOrder, status: OrderStatus.CANCELLED };
+      jest.spyOn(service, 'findOne').mockResolvedValue(cancelledOrder);
+
+      await expect(service.processPayment(1)).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw exception when payment retries exhaust', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder });
+      const pendingOrder = { ...mockOrder, status: OrderStatus.PENDING };
+      jest.spyOn(service, 'findOne').mockResolvedValue(pendingOrder);
       jest.spyOn(Math, 'random').mockReturnValue(0.05);
 
       await expect(service.processPayment(1)).rejects.toThrow('Payment service unavailable');

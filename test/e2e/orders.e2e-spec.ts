@@ -193,6 +193,20 @@ describe('OrdersController (e2e)', () => {
       });
   });
 
+  it('POST /orders - should return 400 when userId is invalid', () => {
+    return request(app.getHttpServer())
+      .post('/orders')
+      .send({ userId: 99, items: [{ productId: 1, quantity: 1 }] })
+      .expect(400);
+  });
+
+  it('POST /orders - should return 400 when productId does not exist', () => {
+    return request(app.getHttpServer())
+      .post('/orders')
+      .send({ userId: 1, items: [{ productId: 99, quantity: 1 }] })
+      .expect(400);
+  });
+
   it('POST /orders - should return 400 when product stock is insufficient', async () => {
     jest.spyOn(productsService, 'findOne').mockResolvedValueOnce({ ...mockProduct, stock: 1 } as any);
     await request(app.getHttpServer())
@@ -213,6 +227,13 @@ describe('OrdersController (e2e)', () => {
     return request(app.getHttpServer())
       .post('/orders/1/pay')
       .expect(201);
+  });
+
+  it('POST /orders/1/pay - should return 400 when order is cancelled', async () => {
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CANCELLED });
+    await request(app.getHttpServer())
+      .post('/orders/1/pay')
+      .expect(400);
   });
 
   it('POST /orders/1/pay - should throw 500 when payment retries exhaust', async () => {
