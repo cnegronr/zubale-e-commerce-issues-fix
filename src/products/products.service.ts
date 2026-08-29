@@ -35,7 +35,11 @@ export class ProductsService {
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     if (createProductDto.categoryId !== undefined && createProductDto.categoryId !== null) {
-      await this.findCategory(createProductDto.categoryId);
+      try {
+        await this.findCategory(createProductDto.categoryId);
+      } catch (err) {
+        throw new BadRequestException(`Cannot create product because category #${createProductDto.categoryId} does not exist`);
+      }
     }
     const product = this.productsRepository.create(createProductDto);
     return this.productsRepository.save(product);
@@ -90,7 +94,11 @@ export class ProductsService {
 
   async createCategory(dto: CreateCategoryDto): Promise<Category> {
     if (dto.parentId !== undefined && dto.parentId !== null) {
-      await this.findCategory(dto.parentId);
+      try {
+        await this.findCategory(dto.parentId);
+      } catch (err) {
+        throw new BadRequestException(`Cannot create category because parent category #${dto.parentId} does not exist`);
+      }
     }
     const category = this.categoriesRepository.create(dto);
     return this.categoriesRepository.save(category);

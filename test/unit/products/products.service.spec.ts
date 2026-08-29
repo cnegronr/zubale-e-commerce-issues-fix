@@ -121,11 +121,11 @@ describe('ProductsService', () => {
       expect(productsRepository.save).toHaveBeenCalledWith(mockProduct);
     });
 
-    it('should throw NotFoundException if categoryId does not exist', async () => {
+    it('should throw BadRequestException if categoryId does not exist', async () => {
       const dto = { name: 'Laptop', price: 1500, stock: 10, categoryId: 99 };
       jest.spyOn(service, 'findCategory').mockRejectedValue(new NotFoundException('Category #99 not found'));
 
-      await expect(service.create(dto as any)).rejects.toThrow(NotFoundException);
+      await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -227,11 +227,11 @@ describe('ProductsService', () => {
       expect(categoriesRepository.save).toHaveBeenCalledWith(mockCategory);
     });
 
-    it('should throw NotFoundException if parentId does not exist (e.g. parentId = 0)', async () => {
+    it('should throw BadRequestException if parentId does not exist (e.g. parentId = 0)', async () => {
       const dto = { name: 'Laptops', parentId: 0 };
       jest.spyOn(service, 'findCategory').mockRejectedValue(new NotFoundException('Category #0 not found'));
 
-      await expect(service.createCategory(dto)).rejects.toThrow(NotFoundException);
+      await expect(service.createCategory(dto)).rejects.toThrow(BadRequestException);
       expect(service.findCategory).toHaveBeenCalledWith(0);
     });
   });

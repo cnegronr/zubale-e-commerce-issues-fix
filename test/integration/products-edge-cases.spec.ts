@@ -167,8 +167,8 @@ describe('Products & Categories Integration & Edge-Case Tests', () => {
     it('Product / Category Not Found & Batch exceptions', async () => {
       await expect(productsService.findOne(99)).rejects.toThrow(NotFoundException);
       await expect(productsService.findCategory(99)).rejects.toThrow(NotFoundException);
-      await expect(productsService.create({ name: 'Invalid', price: 10, stock: 1, categoryId: 99 })).rejects.toThrow(NotFoundException);
-      await expect(productsService.createCategory({ name: 'Invalid', parentId: 99 })).rejects.toThrow(NotFoundException);
+      await expect(productsService.create({ name: 'Invalid', price: 10, stock: 1, categoryId: 99 })).rejects.toThrow(BadRequestException);
+      await expect(productsService.createCategory({ name: 'Invalid', parentId: 99 })).rejects.toThrow(BadRequestException);
       await expect(productsService.processProductBatch(null as any)).rejects.toThrow(BadRequestException);
     });
   });

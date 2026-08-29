@@ -180,11 +180,11 @@ describe('ProductsController & CategoriesController (e2e)', () => {
         });
     });
 
-    it('POST /products - should return 404 when categoryId does not exist', () => {
+    it('POST /products - should return 400 when categoryId does not exist', () => {
       return request(app.getHttpServer())
         .post('/products')
         .send({ name: 'Gaming Laptop', price: 1500, stock: 10, categoryId: 99 })
-        .expect(404);
+        .expect(400);
     });
 
     it('POST /products/batch - should process batch with success and failure items', async () => {
@@ -270,16 +270,16 @@ describe('ProductsController & CategoriesController (e2e)', () => {
         });
     });
 
-    it('POST /categories - should return 404 when parentId does not exist (including parentId = 0)', async () => {
+    it('POST /categories - should return 400 when parentId does not exist (including parentId = 0)', async () => {
       await request(app.getHttpServer())
         .post('/categories')
         .send({ name: 'Laptops', parentId: 99 })
-        .expect(404);
+        .expect(400);
 
       await request(app.getHttpServer())
         .post('/categories')
         .send({ name: 'Laptops', parentId: 0 })
-        .expect(404);
+        .expect(400);
     });
   });
 });
