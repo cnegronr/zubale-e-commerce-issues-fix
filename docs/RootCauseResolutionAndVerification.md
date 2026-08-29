@@ -16,7 +16,7 @@ We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md`
   ● Concurrency & System Resiliency Tests › Resiliency: Payment Retry Bounded Execution Limits
     thrown: "Exceeded timeout of 5000 ms for a test."
   ```
-- **Root Cause**: `OrdersService.processPayment` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) loops up to `maxRetries = 1000` with `100ms` sleep on failure without exponential backoff or execution bounds, blocking HTTP sockets for up to 100 seconds.
+- **Root Cause**: `OrdersService.processPayment` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) looped up to `maxRetries = 1000` with `100ms` sleep on failure without execution bounds, blocking HTTP sockets for up to 100 seconds. Capped to `maxRetries = 5` and throws `ServiceUnavailableException` (`503 Service Unavailable`).
 
 ---
 
@@ -198,7 +198,7 @@ We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md`
   - Pre-validate stock availability for all aggregated items, collecting all failing items and throwing `BadRequestException('Not enough stock for: ...')` (400 Bad Request) detailing all failing products.
 - **Await Stock Update & Payload Validation**: Validate `dto.items` is non-empty (`BadRequestException`) and `await this.productsService.updateStock(...)` inside `create()`.
 - **Reject Payment Processing on Non-Pending Orders**: Check `if (order.status !== OrderStatus.PENDING)` in `processPayment`, rejecting payment processing for cancelled or confirmed orders with `BadRequestException` (400 Bad Request).
-- **Bound Payment Retries**: Cap payment retries to `maxRetries = 5` to prevent blocking HTTP sockets.
+- **Bound Payment Retries & Semantic Exception**: Cap payment retries to `maxRetries = 5` to prevent blocking HTTP sockets, and throw `ServiceUnavailableException('Payment service unavailable')` (`503 Service Unavailable`) when retries exhaust.
 - **Idempotent Cancellation**: Check if `order.status === OrderStatus.CANCELLED` before restoring stock to ensure idempotency.
 
 ---

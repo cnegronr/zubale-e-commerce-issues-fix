@@ -236,11 +236,11 @@ describe('OrdersController (e2e)', () => {
       .expect(400);
   });
 
-  it('POST /orders/1/pay - should throw 500 when payment retries exhaust', async () => {
+  it('POST /orders/1/pay - should throw 503 Service Unavailable when payment retries exhaust', async () => {
     const spy = jest.spyOn(Math, 'random').mockReturnValue(0.05);
     await request(app.getHttpServer())
       .post('/orders/1/pay')
-      .expect(500);
+      .expect(503);
     spy.mockRestore();
   });
 

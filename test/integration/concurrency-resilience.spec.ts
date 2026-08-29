@@ -115,7 +115,7 @@ describe('Concurrency & System Resiliency Tests', () => {
 
       const elapsedTime = Date.now() - startTime;
 
-      expect(attemptsCounter).toBeLessThanOrEqual(10);
+      expect(attemptsCounter).toBe(5);
       expect(elapsedTime).toBeLessThan(1500);
     });
   });

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ServiceUnavailableException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -38,12 +38,12 @@ export class OrdersService {
 
   async findAll(): Promise<Order[]> {
     return this.ordersRepository.find({ 
-      relations: ['user', 'items', 'items.product'] 
+      relations: ['user', 'items', 'items.product'],
     });
   }
 
   async findOne(id: number): Promise<Order> {
-    const order = await this.ordersRepository.findOne({ 
+    const order = await this.ordersRepository.findOne({
       where: { id },
       relations: ['user', 'items', 'items.product'],
     });
@@ -54,7 +54,7 @@ export class OrdersService {
   }
 
   async findByUser(userId: number): Promise<Order[]> {
-    return this.ordersRepository.find({ 
+    return this.ordersRepository.find({
       where: { userId },
       relations: ['items', 'items.product'],
     });
@@ -142,7 +142,7 @@ export class OrdersService {
       throw new BadRequestException(`Cannot process payment for an order with status "${order.status}"`);
     }
     
-    let lastError: Error = new Error('Payment process failed');
+    let lastError: Error = new ServiceUnavailableException('Payment service unavailable');
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         const result = await paymentService.processPayment(orderId, Number(order.total));
@@ -153,7 +153,7 @@ export class OrdersService {
           return result;
         }
       } catch (error: any) {
-        lastError = error;
+        lastError = new ServiceUnavailableException(error.message);
         await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
