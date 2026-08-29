@@ -139,5 +139,15 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     it('MUST throw BadRequestException when attempting to update directly to delivered when order is not shipped', async () => {
       await expect(ordersService.updateStatus(1, OrderStatus.DELIVERED)).rejects.toThrow(BadRequestException);
     });
+
+    it('MUST be idempotent when updating an order that is already shipped or delivered', async () => {
+      jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.SHIPPED });
+      const resShippedAgain = await ordersService.updateStatus(1, OrderStatus.SHIPPED);
+      expect(resShippedAgain.status).toBe(OrderStatus.SHIPPED);
+
+      jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.DELIVERED });
+      const resDeliveredAgain = await ordersService.updateStatus(1, OrderStatus.DELIVERED);
+      expect(resDeliveredAgain.status).toBe(OrderStatus.DELIVERED);
+    });
   });
 });

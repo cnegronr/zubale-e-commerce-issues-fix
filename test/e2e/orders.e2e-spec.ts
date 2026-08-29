@@ -287,6 +287,26 @@ describe('OrdersController (e2e)', () => {
       .expect(400);
   });
 
+  it('PATCH /orders/1/status - should return 200 idempotently when order is already in shipped or delivered status', async () => {
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.SHIPPED });
+    await request(app.getHttpServer())
+      .patch('/orders/1/status')
+      .send({ status: OrderStatus.SHIPPED })
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.status).toBe(OrderStatus.SHIPPED);
+      });
+
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.DELIVERED });
+    await request(app.getHttpServer())
+      .patch('/orders/1/status')
+      .send({ status: OrderStatus.DELIVERED })
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.status).toBe(OrderStatus.DELIVERED);
+      });
+  });
+
   it('POST /orders/1/cancel - should cancel pending order and return idempotently if cancelled again', async () => {
     await request(app.getHttpServer())
       .post('/orders/1/cancel')

@@ -144,6 +144,10 @@ export class OrdersService {
       );
     }
 
+    if (order.status === status) {
+      return order;
+    }
+
     if (status === OrderStatus.SHIPPED && order.status !== OrderStatus.CONFIRMED) {
       throw new BadRequestException('Only confirmed orders can be updated to shipped');
     }

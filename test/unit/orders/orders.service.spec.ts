@@ -232,6 +232,18 @@ describe('OrdersService', () => {
       expect(ordersRepository.save).toHaveBeenCalled();
     });
 
+    it('should return order idempotently when already in shipped or delivered status', async () => {
+      const shippedOrder = { ...mockOrder, status: OrderStatus.SHIPPED };
+      jest.spyOn(service, 'findOne').mockResolvedValue(shippedOrder);
+      const resShipped = await service.updateStatus(1, OrderStatus.SHIPPED);
+      expect(resShipped.status).toBe(OrderStatus.SHIPPED);
+
+      const deliveredOrder = { ...mockOrder, status: OrderStatus.DELIVERED };
+      jest.spyOn(service, 'findOne').mockResolvedValue(deliveredOrder);
+      const resDelivered = await service.updateStatus(1, OrderStatus.DELIVERED);
+      expect(resDelivered.status).toBe(OrderStatus.DELIVERED);
+    });
+
     it('should throw BadRequestException if orderId is invalid or non-existing', async () => {
       jest.spyOn(service, 'findOne').mockRejectedValue(new NotFoundException('Order #99 not found'));
       await expect(service.updateStatus(99, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
