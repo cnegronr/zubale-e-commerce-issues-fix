@@ -6,80 +6,182 @@ This action plan addresses all requirements in `INSTRUCTIONS.md`, focusing first
 
 ## Stage 1: Getting Started - Reproduction & Empirical Evidence
 
-We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md` via dedicated test suites in `test/integration/` and `test/e2e/`.
+We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md` and subsequent issue reports (`Issues.md`, `Issues2.md`, `Issues3.md`) via dedicated test suites in `test/unit/`, `test/integration/`, and `test/e2e/`.
 
-### 1. Symptom: "Some requests are extremely slow or never complete"
-- **Reproduction Suite**: [test/integration/concurrency-resilience.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/concurrency-resilience.spec.ts#L108-L125)
+### 1. Symptom / Fallo 11: "Some requests are extremely slow or never complete" (Bloqueo Indefinido de Sockets HTTP)
+- **Reproduction Suite**: [test/integration/concurrency-resilience.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/concurrency-resilience.spec.ts#L99-L121)
 - **Empirical Log Evidence**:
   ```
   FAIL test/integration/concurrency-resilience.spec.ts
   ● Concurrency & System Resiliency Tests › Resiliency: Payment Retry Bounded Execution Limits
     thrown: "Exceeded timeout of 5000 ms for a test."
   ```
-- **Root Cause**: `OrdersService.processPayment` in [src/orders/orders.service.ts:133-149](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts#L133-L149) loops up to `maxRetries = 1000` with `100ms` sleep on failure without exponential backoff or gateway execution bounds.
+- **Root Cause**: `OrdersService.processPayment` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) loops up to `maxRetries = 1000` with `100ms` sleep on failure without exponential backoff or execution bounds, blocking HTTP sockets for up to 100 seconds.
 
 ---
 
-### 2. Symptom: "Intermittent errors occur in certain flows"
-- **Reproduction Suite**: [test/integration/orders-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-contract.spec.ts#L110-L125)
+### 2. Symptom / Fallo 6: "Intermittent errors occur in certain flows" (Crash de Serialización Circular en Detalles de Orden)
+- **Reproduction Suite**: [test/integration/orders-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-contract.spec.ts#L117-L128)
 - **Empirical Log Evidence**:
   ```
   TypeError: Converting circular structure to JSON
       at JSON.stringify (<anonymous>)
-      at OrdersService.getOrderWithFullDetails (src/orders/orders.service.ts:156:28)
+      at OrdersService.getOrderWithFullDetails (src/orders/orders.service.ts)
   ```
-- **Root Cause**: `OrdersService.getOrderWithFullDetails` in [src/orders/orders.service.ts:154](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts#L154) assigns `enriched.user.latestOrder = enriched`, creating an infinite circular object reference during serialization.
+- **Root Cause**: `OrdersService.getOrderWithFullDetails` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) assigns `enriched.user.latestOrder = enriched`, creating an infinite circular object reference during JSON serialization.
 
 ---
 
-### 3. Symptom: "Cache behavior does not match expectations"
+### 3. Symptom / Fallo 2: "Cache behavior does not match expectations" (Contaminación de Caché en Búsquedas de Productos)
 - **Reproduction Suite**: [test/integration/products-cache-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-cache-contract.spec.ts#L50-L79)
 - **Empirical Log Evidence**:
   ```
   Expected: [{"description": "Mobile phone", "name": "Smartphone"}]
   Received: [{"description": "Powerful laptop", "name": "Gaming Laptop"}]
   ```
-- **Root Cause**: `ProductsService.searchProducts` in [src/products/products.service.ts:74-79](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts#L74-L79) uses static cache key `'product-search'` regardless of the `query` argument.
+- **Root Cause**: `ProductsService.searchProducts` in [src/products/products.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts) uses static cache key `'product-search'` regardless of the `query` argument, returning cached results of previous searches.
 
 ---
 
-### 4. Symptom: "Some failures produce vague or misleading error messages"
+### 4. Symptom / Fallo 3: "Some failures produce vague or misleading error messages" (Silenciamiento de Errores en Lotes)
 - **Reproduction Suite**: [test/integration/products-cache-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-cache-contract.spec.ts#L80-L97)
 - **Empirical Log Evidence**:
   ```
   console.log: Error processing product
   Received: { success: true, processed: 0 }
   ```
-- **Root Cause**: `ProductsService.processProductBatch` in [src/products/products.service.ts:121-124](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts:121-124) swallows errors into `console.log` and returns `{ success: true }` without populating error lists or failed IDs.
+- **Root Cause**: `ProductsService.processProductBatch` in [src/products/products.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts) swallows item errors into `console.log` and returns `{ success: true }` without populating failed product IDs in the HTTP response.
 
 ---
 
-### 5. Symptom: "Data is sometimes inconsistent or missing"
-- **Reproduction Suite**: [test/integration/concurrency-resilience.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/concurrency-resilience.spec.ts#L50-L106)
+### 5. Symptom / Fallo 7 & 10: "Data is sometimes inconsistent or missing" (Sobregiro de Inventario por Peticiones Concurrentes)
+- **Reproduction Suite**: [test/integration/concurrency-resilience.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/concurrency-resilience.spec.ts) & [test/integration/products-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-edge-cases.spec.ts)
 - **Empirical Log Evidence**:
   ```
   Expected fulfilled: 1
   Received fulfilled: 2 (Stock corrupted to -1)
   ```
 - **Root Causes**:
-  1. `OrdersService.create` in [src/orders/orders.service.ts:89](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts#L89) calls `this.productsService.updateStock` without `await` (floating promise).
-  2. Missing DB transactions / optimistic/pessimistic locking during concurrent stock updates allows double-deduction.
+  1. `OrdersService.create` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) calls `updateStock` without `await` (floating promise). Concurrent requests read the same stock before DB updates complete, causing negative stock corruption.
+  2. Missing negative stock check in `ProductsService.updateStock` allows stock to drop below 0.
+- **Detailed Resiliency & Concurrency Resolution**:
+  - **Synchronous Await Enforcement**: Enforced `await this.productsService.updateStock(...)` in `OrdersService.create` to guarantee sequential DB execution before returning HTTP response.
+  - **Negative Stock Protection**: Added pre-validation in `ProductsService.updateStock` throwing `BadRequestException('Stock quantity cannot be negative')` if `quantity < 0`.
+  - **Payload Item Aggregation**: Consolidated duplicate `productId` entries into a single total prior to stock checks.
+  - **3-Tier Verification Locations**:
+    - **Integration**: `test/integration/products-edge-cases.spec.ts` (`Validation Contract: Negative Stock Prevention`).
+    - **Unit**: `test/unit/orders/orders.service.spec.ts` (`insufficient stock`) & `test/unit/products/products.service.spec.ts` (`negative stock`).
+    - **E2E**: `test/e2e/orders.e2e-spec.ts` & `test/e2e/products.e2e-spec.ts` (`updateStock negative stock prevention`).
 
 ---
 
-### 6. Additional Hidden Edge Cases & Validation Failures Identified
-- **Duplicate Email DB Exception**: `UsersService.create` lets raw Postgres unique constraint error `23505` bubble up as a 500 error instead of throwing NestJS `ConflictException` (409).
-- **Negative Stock Update**: `ProductsService.updateStock` does not validate that `quantity >= 0`, persisting negative stock.
-- **Unpopulated Parent Category Tree Crash**: `ProductsService.getCategoryTree` crashes with `TypeError` when `parentId` is present but relation `parent` is undefined.
-- **Non-Existing `parentId` Foreign Key Error (including `parentId = 0`)**: `ProductsService.createCategory` uses implicit falsy check `if (dto.parentId)` skipping validation when `parentId = 0` or missing, causing PostgreSQL foreign key constraint `23503` 500 error instead of `BadRequestException` (400 Bad Request) informing that the parent category does not exist.
-- **Non-Existing `categoryId` Foreign Key Error**: `ProductsService.create` allows non-existing `categoryId` to throw raw PostgreSQL `23503` 500 error instead of `BadRequestException` (400 Bad Request) informing that the category does not exist.
-- **Invalid `userId` in Order Creation**: `OrdersService.create` throws `BadRequestException` (400 Bad Request) when `userId` is invalid.
-- **Single-Product Error Output on Order Creation with Missing Products**: `OrdersService.create` throws `404 Not Found` for the first missing product instead of `400 Bad Request` reporting **all** non-existing product IDs.
-- **Single-Product Error Output on Insufficient Stock**: `OrdersService.create` stops at the first insufficient stock product instead of `400 Bad Request` reporting **all** failing products with requested vs. available quantities.
-- **Unvalidated Order Item Aggregation**: Duplicate items with the same `productId` in an order payload are not consolidated prior to stock validation.
-- **Payment Processing on Cancelled Orders**: `OrdersService.processPayment` allows processing payments on cancelled or confirmed orders and updates status to `CONFIRMED`.
-- **Empty Order Creation**: `OrdersService.create` allows creating orders with `items: []` and total $0.
-- **Non-Idempotent Order Cancellation**: `OrdersService.cancel` called concurrently on a pending order restores product stock twice.
+### 6. Symptom / Fallo 1: Excepción Cruda 500 en Registro de Email Duplicado
+- **Reproduction Suite**: [test/integration/users-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/users-contract.spec.ts#L45-L60)
+- **Empirical Log Evidence**:
+  ```
+  QueryFailedError: duplicate key value violates unique constraint "UQ_97672ac88f789774dd47f7c8be3"
+  Received: 500 Internal Server Error
+  ```
+- **Root Cause**: `UsersService.create` in [src/users/users.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/users/users.service.ts) does not catch PostgreSQL unique constraint error `23505`, letting DB driver exceptions leak as unhandled HTTP 500 errors instead of NestJS `ConflictException` (409 Conflict).
+
+---
+
+### 7. Symptom / Fallo 4: Persistencia de Stock Negativo
+- **Reproduction Suite**: [test/integration/products-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-edge-cases.spec.ts#L87-L96)
+- **Empirical Log Evidence**:
+  ```
+  Received stock: -10
+  Expected: BadRequestException ('Stock quantity cannot be negative')
+  ```
+- **Root Cause**: `ProductsService.updateStock` in [src/products/products.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts) assigns `product.stock = quantity` without validating `quantity >= 0`, persisting negative inventory values into the database.
+
+---
+
+### 8. Symptom / Fallo 5: Crash por TypeError en Árbol de Categorías sin Padre Poblado
+- **Reproduction Suite**: [test/integration/products-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-edge-cases.spec.ts#L98-L142)
+- **Empirical Log Evidence**:
+  ```
+  TypeError: Cannot read properties of undefined (reading 'id')
+      at ProductsService.buildCategoryTree (src/products/products.service.ts)
+  ```
+- **Root Cause**: `ProductsService.buildCategoryTree` in [src/products/products.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts) checks `if (category.parentId)` and recurses on `category.parent` without verifying if relation `parent` is populated (`undefined`).
+
+---
+
+### 9. Symptom / Fallo 8: Creación de Órdenes con Ítems Vacíos
+- **Reproduction Suite**: [test/integration/orders-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-edge-cases.spec.ts#L96-L102)
+- **Empirical Log Evidence**:
+  ```
+  Received: { id: 2, status: "pending", total: 0, items: [] }
+  Expected: BadRequestException ('Order must contain at least one item')
+  ```
+- **Root Cause**: `OrdersService.create` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) does not validate if `createOrderDto.items` is empty or missing, creating invalid $0 orders.
+
+---
+
+### 10. Symptom / Fallo 9: Cancelación de Orden No Idempotente (Doble Devolución)
+- **Reproduction Suite**: [test/integration/orders-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-edge-cases.spec.ts#L104-L113)
+- **Empirical Log Evidence**:
+  ```
+  Expected stockRestoredCount: 5
+  Received stockRestoredCount: 10 (Restored twice on duplicate cancel requests)
+  ```
+- **Root Cause**: `OrdersService.cancel` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) does not check `if (order.status === OrderStatus.CANCELLED)` before iterating items and updating stock, restoring stock multiple times.
+
+---
+
+### 11. Symptom / Fallo 12: Creación de Subcategoría con `parentId` Inexistente o `parentId = 0`
+- **Reproduction Suite**: [test/integration/products-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-edge-cases.spec.ts#L167-L173) & [test/e2e/products.e2e-spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/e2e/products.e2e-spec.ts#L273-L283)
+- **Empirical Log Evidence**:
+  ```
+  QueryFailedError: insert or update on table "categories" violates foreign key constraint "FK_88cea2dc9c31951d06437879b40"
+  Received: 500 Internal Server Error
+  ```
+- **Root Cause**: `ProductsService.createCategory` in [src/products/products.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts) used implicit falsy evaluation `if (dto.parentId)` which skipped pre-validation for `parentId = 0` or missing IDs, causing raw DB foreign key 500 errors instead of `BadRequestException` (400 Bad Request) informing that the parent category does not exist.
+
+---
+
+### 12. Symptom / Fallo 13: Creación de Producto con `categoryId` Inexistente
+- **Reproduction Suite**: [test/integration/products-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/products-edge-cases.spec.ts#L167-L173) & [test/e2e/products.e2e-spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/e2e/products.e2e-spec.ts#L183-L188)
+- **Empirical Log Evidence**:
+  ```
+  QueryFailedError: insert or update on table "products" violates foreign key constraint "FK_ff56834e735e7837715000570b7"
+  Received: 500 Internal Server Error
+  ```
+- **Root Cause**: `ProductsService.create` in [src/products/products.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/products/products.service.ts) did not validate category existence before saving, causing raw DB foreign key 500 errors instead of `BadRequestException` (400 Bad Request) informing that the category does not exist.
+
+---
+
+### 13. Symptom / Fallo 14: Ocultamiento de Múltiples Productos Inexistentes al Crear Orden
+- **Reproduction Suite**: [test/integration/orders-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-contract.spec.ts#L150-L160) & [test/unit/orders/orders.service.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/unit/orders/orders.service.spec.ts#L196-L201)
+- **Empirical Log Evidence**:
+  ```
+  Received: 404 Not Found ("Product #6 not found")
+  Expected: 400 Bad Request ("Products not found: #6, #7")
+  ```
+- **Root Cause**: `OrdersService.create` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) threw `NotFoundException` (404) immediately on the first missing product instead of pre-validating all product IDs and returning `BadRequestException` (400 Bad Request) listing all non-existing product IDs.
+
+---
+
+### 14. Symptom / Fallo 15: Ocultamiento de Múltiples Productos con Stock Insuficiente y Falta de Agregación
+- **Reproduction Suite**: [test/integration/orders-contract.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-contract.spec.ts#L150-L160) & [test/unit/orders/orders.service.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/unit/orders/orders.service.spec.ts#L171-L184)
+- **Empirical Log Evidence**:
+  ```
+  Received: 400 Bad Request ("Not enough stock for Product 1")
+  Expected: 400 Bad Request ("Not enough stock for: Product 1 (...), Product 2 (...)")
+  ```
+- **Root Cause**: `OrdersService.create` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) stopped at the first product with insufficient stock without consolidating duplicate `productId` items in the payload or collecting all failing products.
+
+---
+
+### 15. Symptom / Fallo 16: Permitir Procesar Pago en Órdenes Canceladas o Confirmadas
+- **Reproduction Suite**: [test/integration/orders-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-edge-cases.spec.ts#L104-L110) & [test/e2e/orders.e2e-spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/e2e/orders.e2e-spec.ts#L227-L232)
+- **Empirical Log Evidence**:
+  ```
+  Received: 201 Created ({ success: true }), order status changed from cancelled to confirmed
+  Expected: 400 Bad Request ("Cannot process payment for an order with status 'cancelled'")
+  ```
+- **Root Cause**: `OrdersService.processPayment` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) did not validate `order.status === OrderStatus.PENDING`, allowing payment processing on cancelled or confirmed orders.
 
 ---
 
