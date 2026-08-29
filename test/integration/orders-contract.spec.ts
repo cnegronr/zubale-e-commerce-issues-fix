@@ -186,7 +186,14 @@ describe('Orders Contract & Integration Tests', () => {
 
     it('create, updateStatus, processPayment, cancel endpoints', async () => {
       expect(await ordersController.create({ userId: 1, items: [{ productId: 1, quantity: 2 }] })).toBeDefined();
-      expect(await ordersController.updateStatus(1, OrderStatus.CONFIRMED)).toBeDefined();
+      
+      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      ordersRepository.findOne.mockResolvedValue(confirmedOrder);
+      expect(await ordersController.updateStatus(1, OrderStatus.SHIPPED)).toBeDefined();
+
+      const shippedOrder = { ...mockOrder, status: OrderStatus.SHIPPED };
+      ordersRepository.findOne.mockResolvedValue(shippedOrder);
+      expect(await ordersController.updateStatus(1, OrderStatus.DELIVERED)).toBeDefined();
       
       const pendingOrder = { ...mockOrder, status: OrderStatus.PENDING };
       ordersRepository.findOne.mockResolvedValue(pendingOrder);
@@ -201,8 +208,8 @@ describe('Orders Contract & Integration Tests', () => {
       ordersRepository.findOne.mockResolvedValueOnce(cancelledOrder);
       expect(await ordersService.cancel(1)).toEqual(cancelledOrder);
 
-      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
-      ordersRepository.findOne.mockResolvedValueOnce(confirmedOrder);
+      const confirmedOrderForCancel = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      ordersRepository.findOne.mockResolvedValueOnce(confirmedOrderForCancel);
       await expect(ordersService.cancel(1)).rejects.toThrow(BadRequestException);
     });
   });

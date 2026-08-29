@@ -30,7 +30,10 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     let currentStatus = OrderStatus.PENDING;
 
     const mockOrdersRepo = {
-      findOne: jest.fn().mockImplementation(async () => {
+      findOne: jest.fn().mockImplementation(async ({ where }: any) => {
+        if (where && where.id === 999) {
+          return null;
+        }
         return { ...mockOrder, status: currentStatus };
       }),
       create: jest.fn((dto) => ({ ...dto, id: 1 })),
@@ -116,6 +119,25 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
 
       // Idempotency assertion: Stock MUST only be restored once (5 units), NOT twice (10 units)
       expect(stockRestoredCount).toBe(5);
+    });
+  });
+
+  describe('Order Status Update Contract: State Machine and Validation Rules (updateStatus)', () => {
+    it('MUST throw BadRequestException (400 Bad Request) when orderId does not exist', async () => {
+      await expect(ordersService.updateStatus(999, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+    });
+
+    it('MUST throw BadRequestException (400 Bad Request) when target status is invalid', async () => {
+      await expect(ordersService.updateStatus(1, OrderStatus.CANCELLED)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.updateStatus(1, 'INVALID' as any)).rejects.toThrow(BadRequestException);
+    });
+
+    it('MUST throw BadRequestException when attempting to update pending, cancelled or delivered orders', async () => {
+      await expect(ordersService.updateStatus(1, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+    });
+
+    it('MUST throw BadRequestException when attempting to update directly to delivered when order is not shipped', async () => {
+      await expect(ordersService.updateStatus(1, OrderStatus.DELIVERED)).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, BadRequestException } from '@nestjs/common';
+import { INestApplication, ValidationPipe, BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
@@ -244,14 +244,47 @@ describe('OrdersController (e2e)', () => {
     spy.mockRestore();
   });
 
-  it('PATCH /orders/1/status - should update status', () => {
+  it('PATCH /orders/1/status - should update status from confirmed to shipped', () => {
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
     return request(app.getHttpServer())
       .patch('/orders/1/status')
-      .send({ status: OrderStatus.CONFIRMED })
+      .send({ status: OrderStatus.SHIPPED })
       .expect(200)
       .expect((res) => {
-        expect(res.body.status).toBe(OrderStatus.CONFIRMED);
+        expect(res.body.status).toBe(OrderStatus.SHIPPED);
       });
+  });
+
+  it('PATCH /orders/99/status - should return 400 when orderId is invalid or non-existing', () => {
+    jest.spyOn(ordersService, 'findOne').mockRejectedValueOnce(new NotFoundException('Order #99 not found'));
+    return request(app.getHttpServer())
+      .patch('/orders/99/status')
+      .send({ status: OrderStatus.SHIPPED })
+      .expect(400);
+  });
+
+  it('PATCH /orders/1/status - should return 400 when status is invalid', () => {
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    return request(app.getHttpServer())
+      .patch('/orders/1/status')
+      .send({ status: 'INVALID' })
+      .expect(400);
+  });
+
+  it('PATCH /orders/1/status - should return 400 when attempting invalid transition to shipped', () => {
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.PENDING });
+    return request(app.getHttpServer())
+      .patch('/orders/1/status')
+      .send({ status: OrderStatus.SHIPPED })
+      .expect(400);
+  });
+
+  it('PATCH /orders/1/status - should return 400 when attempting invalid transition to delivered', () => {
+    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    return request(app.getHttpServer())
+      .patch('/orders/1/status')
+      .send({ status: OrderStatus.DELIVERED })
+      .expect(400);
   });
 
   it('POST /orders/1/cancel - should cancel pending order and return idempotently if cancelled again', async () => {

@@ -6,7 +6,7 @@ This action plan addresses all requirements in `INSTRUCTIONS.md`, focusing first
 
 ## Stage 1: Getting Started - Reproduction & Empirical Evidence
 
-We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md` and subsequent issue reports (`Issues.md`, `Issues2.md`, `Issues3.md`) via dedicated test suites in `test/unit/`, `test/integration/`, and `test/e2e/`.
+We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md` and subsequent issue reports (`Issues.md`, `Issues2.md`, `Issues3.md`, `Issues4.md`) via dedicated test suites in `test/unit/`, `test/integration/`, and `test/e2e/`.
 
 ### 1. Symptom / Fallo 11: "Some requests are extremely slow or never complete" (Bloqueo Indefinido de Sockets HTTP)
 - **Reproduction Suite**: [test/integration/concurrency-resilience.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/concurrency-resilience.spec.ts#L99-L121)
@@ -185,6 +185,28 @@ We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md`
 
 ---
 
+### 16. Symptom / Fallo 17: Respuesta 404 Not Found al Actualizar Estado con `orderId` Inexistente
+- **Reproduction Suite**: [test/integration/orders-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-edge-cases.spec.ts#L123-L125) & [test/e2e/orders.e2e-spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/e2e/orders.e2e-spec.ts#L258-L264)
+- **Empirical Log Evidence**:
+  ```
+  Received: 404 Not Found ("Order #3 not found")
+  Expected: 400 Bad Request ("Order #3 does not exist or orderId is invalid")
+  ```
+- **Root Cause**: `OrdersService.updateStatus` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) used `this.findOne(id)` which threw `NotFoundException` (404 Not Found) instead of `BadRequestException` (400 Bad Request) informing that the provided `orderId` is invalid.
+
+---
+
+### 17. Symptom / Fallo 18: Excepción Cruda 500 y Transiciones de Estado Inválidas al Actualizar Estado de Orden
+- **Reproduction Suite**: [test/integration/orders-edge-cases.spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/integration/orders-edge-cases.spec.ts#L127-L138) & [test/e2e/orders.e2e-spec.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/test/e2e/orders.e2e-spec.ts#L266-L284)
+- **Empirical Log Evidence**:
+  ```
+  Received: 500 Internal Server Error (QueryFailedError: invalid input value for enum order_status_enum: "INVALID")
+  Expected: 400 Bad Request ("Invalid status. Valid status options for update are: shipped, delivered")
+  ```
+- **Root Cause**: `OrdersService.updateStatus` in [src/orders/orders.service.ts](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts) did not validate if `status` was `shipped` or `delivered`, nor did it enforce valid state transitions (`confirmed` -> `shipped` and `shipped` -> `delivered`), allowing invalid enum strings to throw raw PostgreSQL 500 errors and permitting illegal status updates from `pending`, `cancelled`, or `delivered`.
+
+---
+
 ## Stage 2: Proposed Code Fixes
 
 ### 1. [Orders Component](file:///Volumes/Mac-Storage/zubale/product-engineer-challenge/src/orders/orders.service.ts)
@@ -199,6 +221,11 @@ We have empirically reproduced all reported symptoms listed in `INSTRUCTIONS.md`
 - **Await Stock Update & Payload Validation**: Validate `dto.items` is non-empty (`BadRequestException`) and `await this.productsService.updateStock(...)` inside `create()`.
 - **Reject Payment Processing on Non-Pending Orders**: Check `if (order.status !== OrderStatus.PENDING)` in `processPayment`, rejecting payment processing for cancelled or confirmed orders with `BadRequestException` (400 Bad Request).
 - **Bound Payment Retries & Semantic Exception**: Cap payment retries to `maxRetries = 5` to prevent blocking HTTP sockets, and throw `ServiceUnavailableException('Payment service unavailable')` (`503 Service Unavailable`) when retries exhaust.
+- **Strict Status Update Rules & State Machine**:
+  - In `updateStatus`, catch `findOne` 404 and throw `BadRequestException('Order #... does not exist or orderId is invalid')` (400 Bad Request) when `orderId` is invalid.
+  - Validate target status is either `shipped` or `delivered`, throwing `BadRequestException('Invalid status. Valid status options for update are: shipped, delivered')` (400 Bad Request) otherwise.
+  - Enforce `confirmed` -> `shipped` transition, throwing `BadRequestException('Only confirmed orders can be updated to shipped')` (400 Bad Request) if order is not `confirmed`.
+  - Enforce `shipped` -> `delivered` transition, throwing `BadRequestException('Only shipped orders can be updated to delivered')` (400 Bad Request) if order is not `shipped`.
 - **Idempotent Cancellation**: Check if `order.status === OrderStatus.CANCELLED` before restoring stock to ensure idempotency.
 
 ---
@@ -230,7 +257,7 @@ Once Stage 2 code fixes are applied, execute all 3 test suites to verify 100% pa
    ```bash
    pnpm test:cov
    ```
-   *Target*: 8 passed suites, 81 passed tests, 100% statement, branch, function, and line coverage.
+   *Target*: 8 passed suites, 86 passed tests, 100% statement, branch, function, and line coverage.
 
 2. **Integration & Contract Test Suite**:
    ```bash

@@ -212,13 +212,51 @@ describe('OrdersService', () => {
   });
 
   describe('updateStatus', () => {
-    it('should update status of an order and save', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder });
+    it('should update status from confirmed to shipped', async () => {
+      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      jest.spyOn(service, 'findOne').mockResolvedValue(confirmedOrder);
       ordersRepository.save.mockImplementation(async (o: any) => o);
 
-      const result = await service.updateStatus(1, OrderStatus.CONFIRMED);
-      expect(result.status).toBe(OrderStatus.CONFIRMED);
+      const result = await service.updateStatus(1, OrderStatus.SHIPPED);
+      expect(result.status).toBe(OrderStatus.SHIPPED);
       expect(ordersRepository.save).toHaveBeenCalled();
+    });
+
+    it('should update status from shipped to delivered', async () => {
+      const shippedOrder = { ...mockOrder, status: OrderStatus.SHIPPED };
+      jest.spyOn(service, 'findOne').mockResolvedValue(shippedOrder);
+      ordersRepository.save.mockImplementation(async (o: any) => o);
+
+      const result = await service.updateStatus(1, OrderStatus.DELIVERED);
+      expect(result.status).toBe(OrderStatus.DELIVERED);
+      expect(ordersRepository.save).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if orderId is invalid or non-existing', async () => {
+      jest.spyOn(service, 'findOne').mockRejectedValue(new NotFoundException('Order #99 not found'));
+      await expect(service.updateStatus(99, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if target status is invalid (not shipped or delivered)', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED });
+      await expect(service.updateStatus(1, OrderStatus.CANCELLED)).rejects.toThrow(BadRequestException);
+      await expect(service.updateStatus(1, 'INVALID' as any)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if updating from pending, cancelled or delivered', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.PENDING });
+      await expect(service.updateStatus(1, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+
+      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CANCELLED });
+      await expect(service.updateStatus(1, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+
+      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.DELIVERED });
+      await expect(service.updateStatus(1, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if trying to update confirmed order directly to delivered', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED });
+      await expect(service.updateStatus(1, OrderStatus.DELIVERED)).rejects.toThrow('Only shipped orders can be updated to delivered');
     });
   });
 

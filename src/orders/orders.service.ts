@@ -131,7 +131,27 @@ export class OrdersService {
   }
 
   async updateStatus(id: number, status: OrderStatus): Promise<Order> {
-    const order = await this.findOne(id);
+    let order: Order;
+    try {
+      order = await this.findOne(id);
+    } catch (err) {
+      throw new BadRequestException(`Order #${id} does not exist or orderId is invalid`);
+    }
+
+    if (status !== OrderStatus.SHIPPED && status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException(
+        `Invalid status "${status}". Valid status options for update are: ${OrderStatus.SHIPPED}, ${OrderStatus.DELIVERED}`,
+      );
+    }
+
+    if (status === OrderStatus.SHIPPED && order.status !== OrderStatus.CONFIRMED) {
+      throw new BadRequestException('Only confirmed orders can be updated to shipped');
+    }
+
+    if (status === OrderStatus.DELIVERED && order.status !== OrderStatus.SHIPPED) {
+      throw new BadRequestException('Only shipped orders can be updated to delivered');
+    }
+
     order.status = status;
     return this.ordersRepository.save(order);
   }
