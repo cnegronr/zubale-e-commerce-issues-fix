@@ -292,7 +292,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Simulated Failure: Payment retries fail with 500 error after 1000 retries loop', function () {",
+              "pm.test('Simulated Failure: Payment retries fail with 500 error after 100 retries loop', function () {",
               "    pm.expect(pm.response.code).to.be.oneOf([500, 503, 504]);",
               "});"
             ],
@@ -314,7 +314,7 @@
             "pay"
           ]
         },
-        "description": "Simulates INSTRUCTIONS.md failure: Executes 1000 retries loop on payment failure and throws 500 Internal Server Error."
+        "description": "Simulates INSTRUCTIONS.md failure: Executes 100 retries loop on payment failure and throws 500 Internal Server Error."
       }
     },
     {

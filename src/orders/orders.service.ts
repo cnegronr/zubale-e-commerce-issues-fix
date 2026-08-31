@@ -25,7 +25,7 @@ const paymentService = {
 
 @Injectable()
 export class OrdersService {
-  private maxRetries = 1000;
+  private maxRetries = 100;
 
   constructor(
     @InjectRepository(Order)
