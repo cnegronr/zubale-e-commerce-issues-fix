@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
 import { User } from '../users/user.entity';
 import { OrderItem } from './order-item.entity';
 
@@ -15,6 +15,7 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   status: OrderStatus;
 
@@ -25,6 +26,7 @@ export class Order {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Index()
   @Column({ name: 'user_id' })
   userId: number;
 

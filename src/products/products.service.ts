@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike, In } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Product } from './product.entity';
@@ -66,17 +66,24 @@ export class ProductsService {
   }
 
   async searchProducts(query: string): Promise<Product[]> {
-    const searchQuery = query || '';
-    const cacheKey = `product-search:${searchQuery.toLowerCase().trim()}`;
+    const searchQuery = (query || '').trim();
+    const cacheKey = `product-search:${searchQuery.toLowerCase()}`;
     const cached = await this.cacheManager.get<Product[]>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const products = await this.productsRepository.find();
+    const products = await this.productsRepository.find({
+      where: [
+        { name: ILike(`%${searchQuery}%`) },
+        { description: ILike(`%${searchQuery}%`) },
+      ],
+      relations: ['category'],
+    });
+
     const results = products.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (p.description ? p.description.toLowerCase().includes(searchQuery.toLowerCase()) : false)
     );
 
     await this.cacheManager.set(cacheKey, results, 60000);
@@ -142,6 +149,7 @@ export class ProductsService {
   async processProductBatch(productIds: number[]): Promise<{ success: boolean; processed: number; failedProductIds?: number[] }> {
     let processed = 0;
     const failedProductIds: number[] = [];
+    const productsToSave: Product[] = [];
 
     try {
       for (const id of productIds) {
@@ -152,11 +160,15 @@ export class ProductsService {
         try {
           const product = await this.findOne(id);
           product.updatedAt = new Date();
-          await this.productsRepository.save(product);
+          productsToSave.push(product);
           processed++;
         } catch (error) {
           failedProductIds.push(id);
         }
+      }
+
+      if (productsToSave.length > 0) {
+        await this.productsRepository.save(productsToSave);
       }
     } catch (error) {
       throw new BadRequestException('Batch processing failed');

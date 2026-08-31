@@ -238,11 +238,7 @@ export class OrdersService {
     const enriched: any = { ...order };
     if (order.user) {
       enriched.user = {
-        id: order.user.id,
-        name: order.user.name,
-        email: order.user.email,
-        isActive: order.user.isActive,
-        createdAt: order.user.createdAt,
+        ...order.user,
         latestOrder: {
           id: order.id,
           status: order.status,

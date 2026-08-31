@@ -39,6 +39,7 @@ describe('ProductsService', () => {
       create: jest.fn(),
       save: jest.fn(),
       remove: jest.fn(),
+      update: jest.fn(),
     };
 
     const mockCategoriesRepo = {
@@ -174,17 +175,15 @@ describe('ProductsService', () => {
       expect(productsRepository.find).not.toHaveBeenCalled();
     });
 
-    it('should filter products by name and description and cache the result', async () => {
+    it('should search products in DB with ILike and cache the result', async () => {
       cacheManager.get.mockResolvedValue(null);
-      const product1 = { id: 1, name: 'Gadget', description: 'Super laptop device' };
-      const product2 = { id: 2, name: 'Phone', description: null };
-      const product3 = { id: 3, name: 'Desk', description: 'Wooden desk' };
+      const productWithDesc = { ...mockProduct, description: 'Gaming Laptop' };
+      const productNoDesc = { ...mockProduct, id: 2, name: 'Mouse', description: null };
+      productsRepository.find.mockResolvedValue([productWithDesc, productNoDesc]);
 
-      productsRepository.find.mockResolvedValue([product1, product2, product3]);
-
-      const result = await service.searchProducts('laptop');
-      expect(result).toEqual([product1]);
-      expect(cacheManager.set).toHaveBeenCalledWith('product-search:laptop', [product1], 60000);
+      const result = await service.searchProducts('gaming');
+      expect(result).toEqual([productWithDesc]);
+      expect(cacheManager.set).toHaveBeenCalledWith('product-search:gaming', [productWithDesc], 60000);
     });
 
     it('should fallback to empty string search when query is undefined', async () => {
@@ -279,7 +278,7 @@ describe('ProductsService', () => {
   describe('processProductBatch', () => {
     it('should process a batch of product IDs', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ ...mockProduct });
-      productsRepository.save.mockResolvedValue(mockProduct);
+      productsRepository.save.mockResolvedValue([mockProduct]);
 
       const result = await service.processProductBatch([1, 2]);
       expect(result).toEqual({ success: true, processed: 2, failedProductIds: undefined });

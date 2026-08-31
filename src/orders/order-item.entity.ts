@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Order } from './order.entity';
 import { Product } from '../products/product.entity';
 
@@ -11,6 +11,7 @@ export class OrderItem {
   @JoinColumn({ name: 'order_id' })
   order: Order;
 
+  @Index()
   @Column({ name: 'order_id' })
   orderId: number;
 
@@ -18,6 +19,7 @@ export class OrderItem {
   @JoinColumn({ name: 'product_id' })
   product: Product;
 
+  @Index()
   @Column({ name: 'product_id' })
   productId: number;
 

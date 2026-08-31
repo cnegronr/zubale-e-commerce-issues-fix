@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
 import { Category } from './category.entity';
 import { OrderItem } from '../orders/order-item.entity';
 
@@ -7,6 +7,7 @@ export class Product {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column()
   name: string;
 
@@ -22,6 +23,7 @@ export class Product {
   @Column({ default: true })
   isAvailable: boolean;
 
+  @Index()
   @Column({ name: 'category_id', nullable: true })
   categoryId: number;
 
