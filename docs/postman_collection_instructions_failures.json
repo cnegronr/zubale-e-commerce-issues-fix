@@ -1,0 +1,539 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "INSTRUCTIONS.md Failures & Issues Simulation Collection",
+    "description": "Postman Collection on branch reproduce-instructions-issues to simulate and reproduce all reported failures from INSTRUCTIONS.md and docs/Issues*.md: Payment Service Hanging/Retries Failure, Uncaught FK 500 Errors on Category/Product Creation, Incorrect 404 Status Codes for Order Invalid IDs, Payment Allowed on Canceled Orders, Invalid Order Status Transition 500 Errors, and Circular JSON Serialization Crashes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "validUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "validCategoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "validProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "validOrderId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Setup - Create Valid User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('validUserId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"failure.tester@example.com\",\n  \"name\": \"Failure Tester User\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        },
+        "description": "Setup step: Creates a valid user for failure simulations."
+      }
+    },
+    {
+      "name": "0. Setup - Create Valid Category",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('validCategoryId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Setup Hardware Category\",\n  \"description\": \"Valid category for setup\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        },
+        "description": "Setup step: Creates a valid category for failure simulations."
+      }
+    },
+    {
+      "name": "0. Setup - Create Valid Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('validProductId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Setup Test Laptop\",\n  \"description\": \"Laptop for setup\",\n  \"price\": 1200,\n  \"stock\": 10,\n  \"categoryId\": {{validCategoryId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Setup step: Creates a valid product for failure simulations."
+      }
+    },
+    {
+      "name": "0. Setup - Create Valid Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('validOrderId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{validUserId}},\n  \"items\": [\n    {\n      \"productId\": {{validProductId}},\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Setup step: Creates a valid order for failure simulations."
+      }
+    },
+    {
+      "name": "Failure 1: Payment Service Hanging & Retries Failure (INSTRUCTIONS.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Payment retries fail or timeout', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([500, 503, 504]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{validOrderId}}/pay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{validOrderId}}",
+            "pay"
+          ]
+        },
+        "description": "Simulates INSTRUCTIONS.md failure: Extremely slow or hanging request due to 1000 payment retries and payment service unavailability."
+      }
+    },
+    {
+      "name": "Failure 2: Subcategory Creation Uncaught FK 500 Error (Issues.md & Issues3.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Uncaught FK constraint returns 500 error', function () {",
+              "    pm.expect(pm.response.code).to.eql(500);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Laptops\",\n  \"description\": \"Portable workstation computers\",\n  \"parentId\": 99999\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        },
+        "description": "Simulates Issues.md & Issues3.md failure: Creating subcategory with non-existing parentId returns 500 Internal Server Error instead of 400 Bad Request."
+      }
+    },
+    {
+      "name": "Failure 3: Product Creation Uncaught FK 500 Error (Issues.md & Issues3.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Uncaught FK constraint returns 500 error', function () {",
+              "    pm.expect(pm.response.code).to.eql(500);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Developer Laptop\",\n  \"description\": \"High performance workstation\",\n  \"price\": 1299.99,\n  \"stock\": 50,\n  \"categoryId\": 99999\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Simulates Issues.md & Issues3.md failure: Creating product with non-existing categoryId returns 500 Internal Server Error instead of 400 Bad Request."
+      }
+    },
+    {
+      "name": "Failure 4: Create Order Non-Existing User Returns 404 (Issues2.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Returns 404 instead of 400 Bad Request', function () {",
+              "    pm.expect(pm.response.code).to.eql(404);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": 99999,\n  \"items\": [\n    {\n      \"productId\": {{validProductId}},\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Simulates Issues2.md failure: Non-existing userId returns 404 Not Found instead of 400 Bad Request."
+      }
+    },
+    {
+      "name": "Failure 5: Create Order Non-Existing Product Returns 404 (Issues.md & Issues2.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Returns 404 instead of 400 Bad Request', function () {",
+              "    pm.expect(pm.response.code).to.eql(404);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{validUserId}},\n  \"items\": [\n    {\n      \"productId\": 99999,\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Simulates Issues.md & Issues2.md failure: Non-existing productId returns 404 Not Found instead of 400 Bad Request."
+      }
+    },
+    {
+      "name": "Failure 6: Process Payment Allowed on Canceled Order (Issues2.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Payment allowed on canceled order and returns 201/200 success', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{validOrderId}}/pay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{validOrderId}}",
+            "pay"
+          ]
+        },
+        "description": "Simulates Issues2.md failure: Processing payment on a canceled order allows payment and updates status to confirmed instead of rejecting."
+      }
+    },
+    {
+      "name": "Failure 7: Update Order Status Non-Existing Order Returns 404 (Issues4.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Non-existing orderId returns 404 instead of 400', function () {",
+              "    pm.expect(pm.response.code).to.eql(404);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"shipped\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/99999/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "99999",
+            "status"
+          ]
+        },
+        "description": "Simulates Issues4.md failure: Non-existing orderId in updateStatus returns 404 Not Found instead of 400 Bad Request."
+      }
+    },
+    {
+      "name": "Failure 8: Update Order Status Invalid Status String Returns 500 (Issues4.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Invalid status string causes 500 error', function () {",
+              "    pm.expect(pm.response.code).to.eql(500);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"INVALID_STATUS_STRING\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{validOrderId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{validOrderId}}",
+            "status"
+          ]
+        },
+        "description": "Simulates Issues4.md failure: Passing invalid status string causes 500 Internal Server Error instead of 400 Bad Request."
+      }
+    },
+    {
+      "name": "Failure 9: Get Full Order Details Circular Serialization Crash (INSTRUCTIONS.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Simulated Failure: Circular JSON reference causes serialization error / 500', function () {",
+              "    pm.expect(pm.response.code).to.eql(500);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{validOrderId}}/full",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{validOrderId}}",
+            "full"
+          ]
+        },
+        "description": "Simulates INSTRUCTIONS.md failure: Circular JSON reference (enriched.user.latestOrder = enriched) causes JSON serialization crash."
+      }
+    }
+  ]
+}

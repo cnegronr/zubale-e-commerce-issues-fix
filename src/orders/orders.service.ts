@@ -13,11 +13,8 @@ const paymentService = {
   async processPayment(orderId: number, amount: number): Promise<{ success: boolean; transactionId: string }> {
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    if (Math.random() < 0.1) {
-      throw new Error('Payment service unavailable');
-    }
-    
-    return { success: true, transactionId: `TXN-${Date.now()}` };
+    // Always throw payment failure to simulate external payment service failure / hanging retries
+    throw new Error('Payment service unavailable');
   }
 };
 
