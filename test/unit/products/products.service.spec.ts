@@ -101,6 +101,11 @@ describe('ProductsService', () => {
       });
     });
 
+    it('should throw BadRequestException if product id is 0 or negative', async () => {
+      await expect(service.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(service.findOne(-1)).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw NotFoundException if product is not found', async () => {
       productsRepository.findOne.mockResolvedValue(null);
       await expect(service.findOne(99)).rejects.toThrow(NotFoundException);
@@ -205,6 +210,11 @@ describe('ProductsService', () => {
         where: { id: 1 },
         relations: ['parent', 'children', 'products'],
       });
+    });
+
+    it('should throw BadRequestException if category id is 0 or negative', async () => {
+      await expect(service.findCategory(0)).rejects.toThrow(BadRequestException);
+      await expect(service.findCategory(-1)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if category is not found', async () => {

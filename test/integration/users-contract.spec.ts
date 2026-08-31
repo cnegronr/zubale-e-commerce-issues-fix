@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { UsersService } from '../../src/users/users.service';
 import { UsersController } from '../../src/users/users.controller';
 import { User } from '../../src/users/user.entity';
@@ -61,6 +61,11 @@ describe('Users Contract & Integration Tests', () => {
   });
 
   describe('Domain Exception Contract: Duplicate Email Handling', () => {
+    it('MUST throw BadRequestException (400 Bad Request) when fetching user with id 0 or negative', async () => {
+      await expect(usersController.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(usersController.findOne(-5)).rejects.toThrow(BadRequestException);
+    });
+
     it('MUST throw a clean domain exception (ConflictException) when registering a duplicate email', async () => {
       const dbError: any = new Error('duplicate key value violates unique constraint "UQ_97672ac88f789774dd47f7c8be3"');
       dbError.code = '23505';

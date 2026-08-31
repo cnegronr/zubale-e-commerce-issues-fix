@@ -4,6 +4,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ProductsService } from '../../src/products/products.service';
 import { ProductsController, CategoriesController } from '../../src/products/products.controller';
+import { ParsePositiveIntPipe } from '../../src/common/pipes/parse-positive-int.pipe';
 import { AppController } from '../../src/app.controller';
 import { AppService } from '../../src/app.service';
 import { Product } from '../../src/products/product.entity';
@@ -85,8 +86,16 @@ describe('Products & Categories Integration & Edge-Case Tests', () => {
   });
 
   describe('Validation Contract: Negative Stock Prevention (updateStock)', () => {
-    it('MUST throw BadRequestException when attempting to set negative stock', async () => {
+    it('MUST throw BadRequestException (400 Bad Request) when updating stock to negative value', async () => {
       await expect(productsService.updateStock(1, -10)).rejects.toThrow(BadRequestException);
+    });
+
+    it('MUST throw BadRequestException when product or category id is 0 or negative', async () => {
+      const pipe = new ParsePositiveIntPipe();
+      expect(pipe.transform('1')).toBe(1);
+      expect(() => pipe.transform('0')).toThrow(BadRequestException);
+      await expect(productsService.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(productsService.findCategory(0)).rejects.toThrow(BadRequestException);
     });
 
     it('updates stock successfully when quantity is positive', async () => {

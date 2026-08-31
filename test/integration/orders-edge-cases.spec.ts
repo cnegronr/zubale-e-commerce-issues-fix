@@ -149,5 +149,10 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
       const resDeliveredAgain = await ordersService.updateStatus(1, OrderStatus.DELIVERED);
       expect(resDeliveredAgain.status).toBe(OrderStatus.DELIVERED);
     });
+
+    it('MUST throw BadRequestException when order id or userId is 0 or negative', async () => {
+      await expect(ordersService.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.findByUser(0)).rejects.toThrow(BadRequestException);
+    });
   });
 });

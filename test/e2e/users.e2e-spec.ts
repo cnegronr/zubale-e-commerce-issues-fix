@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
@@ -10,6 +10,7 @@ import { User } from '../../src/users/user.entity';
 
 describe('UsersController (e2e)', () => {
   let app: INestApplication<App>;
+  let usersService: UsersService;
   let usersRepository: any;
   let cacheManager: any;
 
@@ -69,6 +70,7 @@ describe('UsersController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
 
+    usersService = moduleFixture.get<UsersService>(UsersService);
     usersRepository = moduleFixture.get(getRepositoryToken(User));
     cacheManager = moduleFixture.get(CACHE_MANAGER);
   });
@@ -108,6 +110,13 @@ describe('UsersController (e2e)', () => {
     await request(app.getHttpServer())
       .get('/users/1')
       .expect(200);
+  });
+
+  it('GET /users/0 - should return 400 Bad Request for positive int pipe failure', async () => {
+    await expect(usersService.findOne(0)).rejects.toThrow(BadRequestException);
+    await request(app.getHttpServer())
+      .get('/users/0')
+      .expect(400);
   });
 
   it('GET /users/99 - should return 404 if user not found', () => {

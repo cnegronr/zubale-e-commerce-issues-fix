@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -28,6 +28,9 @@ export class UsersService {
   }
 
   async findOne(id: number): Promise<User> {
+    if (!id || id <= 0) {
+      throw new BadRequestException('User ID must be a positive integer greater than 0');
+    }
     const cacheKey = `user:${id}`;
     const cached = await this.cacheManager.get<User>(cacheKey);
     if (cached) {

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
@@ -9,10 +9,11 @@ import { ProductsService } from '../../src/products/products.service';
 import { Product } from '../../src/products/product.entity';
 import { Category } from '../../src/products/category.entity';
 
-describe('ProductsController & CategoriesController (e2e)', () => {
+describe('ProductsController (e2e)', () => {
   let app: INestApplication<App>;
   let cacheManager: any;
   let productsService: ProductsService;
+  let productsRepository: any;
 
   const mockProduct = {
     id: 1,
@@ -162,6 +163,14 @@ describe('ProductsController & CategoriesController (e2e)', () => {
         .expect((res) => {
           expect(res.body.id).toBe(1);
         });
+    });
+
+    it('GET /products/0 - should return 400 Bad Request for positive int pipe failure', async () => {
+      await expect(productsService.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(productsService.findCategory(0)).rejects.toThrow(BadRequestException);
+      return request(app.getHttpServer())
+        .get('/products/0')
+        .expect(400);
     });
 
     it('GET /products/99 - should return 404 if product not found', () => {

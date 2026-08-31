@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ParsePositiveIntPipe } from '../common/pipes/parse-positive-int.pipe';
 
 @Controller('users')
 export class UsersController {
@@ -12,7 +13,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
@@ -22,7 +23,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.usersService.remove(id);
   }
 }

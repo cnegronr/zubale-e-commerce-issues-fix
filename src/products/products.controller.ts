@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto, CreateCategoryDto } from './dto/create-product.dto';
+import { ParsePositiveIntPipe } from '../common/pipes/parse-positive-int.pipe';
 
 @Controller('products')
 export class ProductsController {
@@ -17,7 +18,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.productsService.findOne(id);
   }
 
@@ -32,7 +33,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.productsService.remove(id);
   }
 }
@@ -47,12 +48,12 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.productsService.findCategory(id);
   }
 
   @Get(':id/tree')
-  getTree(@Param('id', ParseIntPipe) id: number) {
+  getTree(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.productsService.getCategoryTree(id);
   }
 

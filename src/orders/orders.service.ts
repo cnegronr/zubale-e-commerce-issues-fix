@@ -43,6 +43,9 @@ export class OrdersService {
   }
 
   async findOne(id: number): Promise<Order> {
+    if (!id || id <= 0) {
+      throw new BadRequestException('Order ID must be a positive integer greater than 0');
+    }
     const order = await this.ordersRepository.findOne({
       where: { id },
       relations: ['user', 'items', 'items.product'],
@@ -54,6 +57,9 @@ export class OrdersService {
   }
 
   async findByUser(userId: number): Promise<Order[]> {
+    if (!userId || userId <= 0) {
+      throw new BadRequestException('User ID must be a positive integer greater than 0');
+    }
     return this.ordersRepository.find({
       where: { userId },
       relations: ['items', 'items.product'],

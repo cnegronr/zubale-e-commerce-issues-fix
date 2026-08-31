@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { UsersService } from '../../../src/users/users.service';
 import { User } from '../../../src/users/user.entity';
 
@@ -94,6 +94,11 @@ describe('UsersService', () => {
       expect(result).toEqual(mockUser);
       expect(repository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(cacheManager.set).toHaveBeenCalledWith('user:1', mockUser, 60000);
+    });
+
+    it('should throw BadRequestException if user id is 0 or negative', async () => {
+      await expect(service.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(service.findOne(-1)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if user is not found in DB', async () => {

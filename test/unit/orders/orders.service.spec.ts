@@ -134,6 +134,11 @@ describe('OrdersService', () => {
       expect(result).toEqual(mockOrder);
     });
 
+    it('should throw BadRequestException if order id is 0 or negative', async () => {
+      await expect(service.findOne(0)).rejects.toThrow(BadRequestException);
+      await expect(service.findOne(-1)).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw NotFoundException if order not found', async () => {
       ordersRepository.findOne.mockResolvedValue(null);
       await expect(service.findOne(99)).rejects.toThrow(NotFoundException);
@@ -141,6 +146,11 @@ describe('OrdersService', () => {
   });
 
   describe('findByUser', () => {
+    it('should throw BadRequestException if userId is 0 or negative', async () => {
+      await expect(service.findByUser(0)).rejects.toThrow(BadRequestException);
+      await expect(service.findByUser(-1)).rejects.toThrow(BadRequestException);
+    });
+
     it('should return orders by userId', async () => {
       ordersRepository.find.mockResolvedValue([mockOrder]);
       const result = await service.findByUser(1);

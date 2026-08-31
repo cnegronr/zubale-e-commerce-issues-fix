@@ -263,6 +263,14 @@ describe('OrdersController (e2e)', () => {
       .expect(400);
   });
 
+  it('GET /orders/0 - should return 400 Bad Request for positive int pipe failure', async () => {
+    await expect(ordersService.findOne(0)).rejects.toThrow(BadRequestException);
+    await expect(ordersService.findByUser(0)).rejects.toThrow(BadRequestException);
+    return request(app.getHttpServer())
+      .get('/orders/0')
+      .expect(400);
+  });
+
   it('PATCH /orders/1/status - should return 400 when status is invalid', () => {
     jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
     return request(app.getHttpServer())

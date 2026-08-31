@@ -23,6 +23,9 @@ export class ProductsService {
   }
 
   async findOne(id: number): Promise<Product> {
+    if (!id || id <= 0) {
+      throw new BadRequestException('Product ID must be a positive integer greater than 0');
+    }
     const product = await this.productsRepository.findOne({ 
       where: { id },
       relations: ['category'],
@@ -82,6 +85,9 @@ export class ProductsService {
   }
 
   async findCategory(id: number): Promise<Category> {
+    if (!id || id <= 0) {
+      throw new BadRequestException('Category ID must be a positive integer greater than 0');
+    }
     const category = await this.categoriesRepository.findOne({
       where: { id },
       relations: ['parent', 'children', 'products'],
