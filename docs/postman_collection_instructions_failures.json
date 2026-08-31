@@ -390,15 +390,53 @@
       }
     },
     {
-      "name": "Failure 6: Process Payment Allowed on Canceled Order (Issues2.md)",
+      "name": "6a. Setup - Cancel Valid Order",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Simulated Failure: Payment allowed on canceled order and returns 201/200 success', function () {",
+              "pm.test('Status code is 201 Created or 200 OK', function () {",
               "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
               "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{validOrderId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{validOrderId}}",
+            "cancel"
+          ]
+        },
+        "description": "Cancels the valid order to test payment rejection on cancelled orders."
+      }
+    },
+    {
+      "name": "6b. Fix Failure 6: Process Payment Rejected on Canceled Order (400 Bad Request - Issues2.md)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains payment rejected for cancelled order message', function () {",
+              "        pm.expect(jsonData.message).to.include('Cannot process payment for a cancelled order');",
+              "    });",
+              "}"
             ],
             "type": "text/javascript"
           }
@@ -418,7 +456,7 @@
             "pay"
           ]
         },
-        "description": "Simulates Issues2.md failure: Processing payment on a canceled order allows payment and updates status to confirmed instead of rejecting."
+        "description": "Fix for Issues2.md: Processing payment on a canceled order is rejected immediately with 400 Bad Request, skipping any payment retries."
       }
     },
     {
