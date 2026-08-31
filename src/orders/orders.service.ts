@@ -118,7 +118,7 @@ export class OrdersService {
         }
       } catch (error) {
         lastError = error;
-        await new Promise(resolve => setTimeout(resolve, 1));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
     
