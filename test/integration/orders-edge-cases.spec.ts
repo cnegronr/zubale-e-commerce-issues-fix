@@ -153,6 +153,8 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     it('MUST throw BadRequestException when order id or userId is 0 or negative', async () => {
       await expect(ordersService.findOne(0)).rejects.toThrow(BadRequestException);
       await expect(ordersService.findByUser(0)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.create({ userId: 0, items: [{ productId: 1, quantity: 1 }] })).rejects.toThrow(BadRequestException);
+      await expect(ordersService.create({ userId: 1, items: [{ productId: 0, quantity: 1 }] })).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -19,6 +19,7 @@ export class CreateProductDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(1)
   categoryId?: number;
 }
 
@@ -32,5 +33,6 @@ export class CreateCategoryDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(1)
   parentId?: number;
 }

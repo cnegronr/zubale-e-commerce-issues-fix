@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 
 export class OrderItemDto {
   @IsNumber()
+  @Min(1)
   productId: number;
 
   @IsNumber()
@@ -12,6 +13,7 @@ export class OrderItemDto {
 
 export class CreateOrderDto {
   @IsNumber()
+  @Min(1)
   userId: number;
 
   @IsArray()

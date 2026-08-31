@@ -199,6 +199,17 @@ describe('OrdersService', () => {
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
 
+    it('should throw BadRequestException if userId is <= 0', async () => {
+      const dto = { userId: 0, items: [{ productId: 1, quantity: 1 }] };
+      await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should fail-fast and list missing product IDs when item has productId <= 0', async () => {
+      usersService.findOne.mockResolvedValue(mockUser);
+      const dto = { userId: 1, items: [{ productId: 0, quantity: 1 }] };
+      await expect(service.create(dto)).rejects.toThrow('Products not found: #0');
+    });
+
     it('should throw BadRequestException if order items is empty', async () => {
       const dto = { userId: 1, items: [] };
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);

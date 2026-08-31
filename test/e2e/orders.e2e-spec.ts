@@ -266,6 +266,8 @@ describe('OrdersController (e2e)', () => {
   it('GET /orders/0 - should return 400 Bad Request for positive int pipe failure', async () => {
     await expect(ordersService.findOne(0)).rejects.toThrow(BadRequestException);
     await expect(ordersService.findByUser(0)).rejects.toThrow(BadRequestException);
+    await expect(ordersService.create({ userId: 0, items: [{ productId: 1, quantity: 1 }] })).rejects.toThrow(BadRequestException);
+    await expect(ordersService.create({ userId: 1, items: [{ productId: 0, quantity: 1 }] })).rejects.toThrow('Products not found: #0');
     return request(app.getHttpServer())
       .get('/orders/0')
       .expect(400);

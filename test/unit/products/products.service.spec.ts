@@ -132,6 +132,11 @@ describe('ProductsService', () => {
 
       await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
     });
+
+    it('should throw BadRequestException if categoryId is 0 or negative', async () => {
+      const dto = { name: 'Laptop', price: 1500, stock: 10, categoryId: 0 };
+      await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('updateStock', () => {
@@ -239,10 +244,13 @@ describe('ProductsService', () => {
 
     it('should throw BadRequestException if parentId does not exist (e.g. parentId = 0)', async () => {
       const dto = { name: 'Laptops', parentId: 0 };
-      jest.spyOn(service, 'findCategory').mockRejectedValue(new NotFoundException('Category #0 not found'));
-
       await expect(service.createCategory(dto)).rejects.toThrow(BadRequestException);
-      expect(service.findCategory).toHaveBeenCalledWith(0);
+    });
+
+    it('should throw BadRequestException if parentId is positive but category does not exist in DB', async () => {
+      const dto = { name: 'Laptops', parentId: 99 };
+      jest.spyOn(service, 'findCategory').mockRejectedValueOnce(new NotFoundException('Category #99 not found'));
+      await expect(service.createCategory(dto)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -282,6 +290,11 @@ describe('ProductsService', () => {
 
       const result = await service.processProductBatch([1]);
       expect(result).toEqual({ success: true, processed: 0, failedProductIds: [1] });
+    });
+
+    it('should fail-fast for invalid product IDs <= 0 in batch and report failed IDs without querying DB', async () => {
+      const result = await service.processProductBatch([0, -1]);
+      expect(result).toEqual({ success: true, processed: 0, failedProductIds: [0, -1] });
     });
 
     it('should throw BadRequestException if outer processing fails or invalid payload is passed', async () => {

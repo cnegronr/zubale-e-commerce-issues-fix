@@ -71,6 +71,10 @@ export class OrdersService {
       throw new BadRequestException('Order must contain at least one item');
     }
 
+    if (!createOrderDto.userId || createOrderDto.userId <= 0) {
+      throw new BadRequestException(`User #${createOrderDto.userId} not found`);
+    }
+
     let user: any;
     try {
       user = await this.usersService.findOne(createOrderDto.userId);
@@ -89,6 +93,10 @@ export class OrdersService {
     const validatedItems: Array<{ product: any; quantity: number }> = [];
 
     for (const [productId, totalQuantity] of itemMap.entries()) {
+      if (productId <= 0) {
+        missingProductIds.push(productId);
+        continue;
+      }
       try {
         const product = await this.productsService.findOne(productId);
         if (product.stock < totalQuantity) {

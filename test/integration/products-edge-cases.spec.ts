@@ -96,6 +96,10 @@ describe('Products & Categories Integration & Edge-Case Tests', () => {
       expect(() => pipe.transform('0')).toThrow(BadRequestException);
       await expect(productsService.findOne(0)).rejects.toThrow(BadRequestException);
       await expect(productsService.findCategory(0)).rejects.toThrow(BadRequestException);
+      await expect(productsService.create({ name: 'Test', price: 100, categoryId: 0 })).rejects.toThrow(BadRequestException);
+      await expect(productsService.createCategory({ name: 'TestCat', parentId: 0 })).rejects.toThrow(BadRequestException);
+      const batchRes = await productsService.processProductBatch([0, -1]);
+      expect(batchRes.failedProductIds).toEqual([0, -1]);
     });
 
     it('updates stock successfully when quantity is positive', async () => {

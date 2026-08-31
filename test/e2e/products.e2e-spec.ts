@@ -168,6 +168,10 @@ describe('ProductsController (e2e)', () => {
     it('GET /products/0 - should return 400 Bad Request for positive int pipe failure', async () => {
       await expect(productsService.findOne(0)).rejects.toThrow(BadRequestException);
       await expect(productsService.findCategory(0)).rejects.toThrow(BadRequestException);
+      await expect(productsService.create({ name: 'Test', price: 100, categoryId: 0 })).rejects.toThrow(BadRequestException);
+      await expect(productsService.createCategory({ name: 'TestCat', parentId: 0 })).rejects.toThrow(BadRequestException);
+      const batchRes = await productsService.processProductBatch([0, -1]);
+      expect(batchRes.failedProductIds).toEqual([0, -1]);
       return request(app.getHttpServer())
         .get('/products/0')
         .expect(400);

@@ -38,6 +38,9 @@ export class ProductsService {
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     if (createProductDto.categoryId !== undefined && createProductDto.categoryId !== null) {
+      if (createProductDto.categoryId <= 0) {
+        throw new BadRequestException(`Cannot create product because category #${createProductDto.categoryId} does not exist`);
+      }
       try {
         await this.findCategory(createProductDto.categoryId);
       } catch (err) {
@@ -100,6 +103,9 @@ export class ProductsService {
 
   async createCategory(dto: CreateCategoryDto): Promise<Category> {
     if (dto.parentId !== undefined && dto.parentId !== null) {
+      if (dto.parentId <= 0) {
+        throw new BadRequestException(`Cannot create category because parent category #${dto.parentId} does not exist`);
+      }
       try {
         await this.findCategory(dto.parentId);
       } catch (err) {
@@ -139,6 +145,10 @@ export class ProductsService {
 
     try {
       for (const id of productIds) {
+        if (!id || id <= 0) {
+          failedProductIds.push(id);
+          continue;
+        }
         try {
           const product = await this.findOne(id);
           product.updatedAt = new Date();
