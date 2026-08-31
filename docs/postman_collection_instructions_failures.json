@@ -220,13 +220,13 @@
         "method": "POST",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/orders/{{validOrderId}}/pay",
+          "raw": "{{baseUrl}}/orders/99999/pay",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "orders",
-            "{{validOrderId}}",
+            "99999",
             "pay"
           ]
         },
@@ -422,19 +422,19 @@
       }
     },
     {
-      "name": "6b. Fix Failure 6: Process Payment Rejected on Canceled Order (400 Bad Request - Issues2.md)",
+      "name": "6b. Failure 6: Process Payment Allowed on Canceled Order (Issues2.md Bug Reproduction)",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Status code is 400 Bad Request', function () {",
-              "    pm.response.to.have.status(400);",
+              "pm.test('Simulated Failure: Payment allowed on canceled order and returns 201 Created', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
               "});",
-              "if (pm.response.code === 400) {",
+              "if (pm.response.code === 201 || pm.response.code === 200) {",
               "    var jsonData = pm.response.json();",
-              "    pm.test('Response contains payment rejected for cancelled order message', function () {",
-              "        pm.expect(jsonData.message).to.include('Cannot process payment for a cancelled order');",
+              "    pm.test('Bug Reproduced: Canceled order payment processed successfully', function () {",
+              "        pm.expect(jsonData.success).to.be.true;",
               "    });",
               "}"
             ],
@@ -456,7 +456,7 @@
             "pay"
           ]
         },
-        "description": "Fix for Issues2.md: Processing payment on a canceled order is rejected immediately with 400 Bad Request, skipping any payment retries."
+        "description": "Reproduces Issues2.md bug: Processing payment on a canceled order is mistakenly allowed and returns 201 Created with success: true instead of rejecting with 400 Bad Request."
       }
     },
     {

@@ -11,10 +11,15 @@ import { ProductsService } from '../products/products.service';
 
 const paymentService = {
   async processPayment(orderId: number, amount: number): Promise<{ success: boolean; transactionId: string }> {
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    // Always throw payment failure to simulate external payment service failure / hanging retries
-    throw new Error('Payment service unavailable');
+    // Simulate hanging retries failure for orderId 99999 (Failure 1)
+    if (orderId === 99999) {
+      throw new Error('Payment service unavailable');
+    }
+    
+    // Return success to reproduce Failure 6 (payment allowed on canceled order - Issues2.md)
+    return { success: true, transactionId: `TXN-${Date.now()}` };
   }
 };
 
@@ -100,10 +105,6 @@ export class OrdersService {
 
   async processPayment(orderId: number): Promise<{ success: boolean; transactionId: string }> {
     const order = await this.findOne(orderId);
-    
-    if (order.status === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Cannot process payment for a cancelled order');
-    }
     
     let lastError: Error;
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
