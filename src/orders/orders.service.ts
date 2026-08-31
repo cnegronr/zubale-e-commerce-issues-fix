@@ -11,9 +11,9 @@ import { ProductsService } from '../products/products.service';
 
 const paymentService = {
   async processPayment(orderId: number, amount: number): Promise<{ success: boolean; transactionId: string }> {
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 5));
     
-    // Simulate hanging retries failure for orderId 99999 (Failure 1)
+    // Simulate payment failure for orderId 99999 (Failure 1)
     if (orderId === 99999) {
       throw new Error('Payment service unavailable');
     }
@@ -118,7 +118,7 @@ export class OrdersService {
         }
       } catch (error) {
         lastError = error;
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 1));
       }
     }
     
