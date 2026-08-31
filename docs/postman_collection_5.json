@@ -1,0 +1,789 @@
+{
+  "info": {
+    "_postman_id": "c7a3d2b1-6f5e-4d8c-a9b0-1e2f3a4b5c6d",
+    "name": "05 Product Engineer Challenge API - Orders Collection 5",
+    "description": "Postman Collection 5 for automated Orders API testing including Fail-Fast enhancements: Pre-requisite User/Product creation, Create Order, Fail-Fast Order Creation Validations (User ID 0 / Product ID 0), Get All Orders, Get Orders by User, Get Order by ID, Fail-Fast Zero/Negative Order ID Validations (400 Bad Request), Get Order Full Details, Process Order Payment, Update Order Status (including Idempotency Check), and Cancel Order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup - Create User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('userId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"order.tester@example.com\",\n  \"name\": \"Order Tester User\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        },
+        "description": "Pre-requisite step: Creates a user to place orders."
+      }
+    },
+    {
+      "name": "Setup - Create Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('productId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Order Testing Laptop\",\n  \"description\": \"Laptop for order testing\",\n  \"price\": 1200,\n  \"stock\": 20\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Pre-requisite step: Creates a product for order items."
+      }
+    },
+    {
+      "name": "Create Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('orderId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{userId}},\n  \"items\": [\n    {\n      \"productId\": {{productId}},\n      \"quantity\": 2\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Creates a new order with valid userId and productId."
+      }
+    },
+    {
+      "name": "Create Order - Fail-Fast Invalid User ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast invalid user ID validation error', function () {",
+              "        var isExpectedError = jsonData.message && (",
+              "            jsonData.message.includes('not found') ||",
+              "            jsonData.message.includes('must be greater than') ||",
+              "            (Array.isArray(jsonData.message) && jsonData.message.some(function(m) { return m.includes('userId'); }))",
+              "        );",
+              "        pm.expect(isExpectedError).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": 0,\n  \"items\": [\n    {\n      \"productId\": {{productId}},\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to create an order with userId 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Create Order - Fail-Fast Invalid Product ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast invalid product ID validation error', function () {",
+              "        var isExpectedError = jsonData.message && (",
+              "            jsonData.message.includes('not found') ||",
+              "            jsonData.message.includes('must be greater than') ||",
+              "            (Array.isArray(jsonData.message) && jsonData.message.some(function(m) { return m.includes('productId'); }))",
+              "        );",
+              "        pm.expect(isExpectedError).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{userId}},\n  \"items\": [\n    {\n      \"productId\": 0,\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to create an order with productId 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get All Orders",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response is an array of orders', function () {",
+              "        pm.expect(Array.isArray(jsonData)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Fetches all orders."
+      }
+    },
+    {
+      "name": "Get Orders by User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response is an array of orders for user', function () {",
+              "        pm.expect(Array.isArray(jsonData)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders?userId={{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "userId",
+              "value": "{{userId}}"
+            }
+          ]
+        },
+        "description": "Fetches orders filtered by userId."
+      }
+    },
+    {
+      "name": "Get Order by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('orderId'), 10);",
+              "    pm.test('Order ID matches created order', function () {",
+              "        pm.expect(jsonData.id).to.eql(targetId);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{orderId}}"
+          ]
+        },
+        "description": "Fetches the specific order created using orderId."
+      }
+    },
+    {
+      "name": "Get Order by ID - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "0"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting order ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get Order by ID - Fail-Fast Negative ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/-9",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "-9"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting negative order ID -9, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get Order Full Details",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('orderId'), 10);",
+              "    pm.test('Full details order ID matches created order', function () {",
+              "        pm.expect(jsonData.id).to.eql(targetId);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/full",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{orderId}}",
+            "full"
+          ]
+        },
+        "description": "Fetches full order details including relations."
+      }
+    },
+    {
+      "name": "Get Order Full Details - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/0/full",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "0",
+            "full"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when requesting full order details for ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Process Order Payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Payment processing returns success: true', function () {",
+              "        pm.expect(jsonData.success).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/pay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{orderId}}",
+            "pay"
+          ]
+        },
+        "description": "Processes payment for the order."
+      }
+    },
+    {
+      "name": "Process Order Payment - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/0/pay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "0",
+            "pay"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to pay for order ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Update Order Status to Shipped",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Order status is updated to shipped', function () {",
+              "        pm.expect(jsonData.status).to.eql('shipped');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"shipped\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{orderId}}",
+            "status"
+          ]
+        },
+        "description": "Updates order status to shipped."
+      }
+    },
+    {
+      "name": "Update Order Status Idempotency Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Order remains shipped idempotently', function () {",
+              "        pm.expect(jsonData.status).to.eql('shipped');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"shipped\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "{{orderId}}",
+            "status"
+          ]
+        },
+        "description": "Verifies status update idempotency when repeating shipped status."
+      }
+    },
+    {
+      "name": "Update Order Status - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"delivered\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/0/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "0",
+            "status"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to update status for order ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Cancel Order - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/orders/0/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "0",
+            "cancel"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to cancel order ID 0, expecting 400 Bad Request."
+      }
+    }
+  ]
+}

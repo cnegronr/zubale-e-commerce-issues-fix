@@ -1,42 +1,11 @@
 {
   "info": {
-    "_postman_id": "b3e9a7c1-9f82-4e5d-b2a1-8c7e6f5d4c3b",
+    "_postman_id": "1719af2f-e5ee-4cc1-86ff-7895a5734c25",
     "name": "Product Engineer Challenge API",
     "description": "Postman Collection for testing all API endpoints, happy paths, edge cases, and resiliency scenarios of the Product Engineer Challenge (NestJS, PostgreSQL, Redis).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "5718243"
   },
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000",
-      "type": "string"
-    },
-    {
-      "key": "userId",
-      "value": "1",
-      "type": "string"
-    },
-    {
-      "key": "productId",
-      "value": "1",
-      "type": "string"
-    },
-    {
-      "key": "categoryId",
-      "value": "1",
-      "type": "string"
-    },
-    {
-      "key": "subcategoryId",
-      "value": "2",
-      "type": "string"
-    },
-    {
-      "key": "orderId",
-      "value": "1",
-      "type": "string"
-    }
-  ],
   "item": [
     {
       "name": "Users",
@@ -48,11 +17,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
             },
             "description": "Fetches all registered users."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get User by ID",
@@ -61,11 +35,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "{{userId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}"
+              ]
             },
             "description": "Fetches a specific user by ID."
-          }
+          },
+          "response": []
         },
         {
           "name": "Create User",
@@ -77,7 +57,9 @@
                   "var jsonData = pm.response.json();",
                   "if (jsonData.id) { pm.collectionVariables.set('userId', jsonData.id); }"
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -91,15 +73,20 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"test.user@example.com\",\n  \"name\": \"Test User\"\n}"
+              "raw": "{\n  \"email\": \"demo.engineer@example.com\",\n  \"name\": \"Demo Engineer\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
             },
             "description": "Creates a new user."
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Duplicate Email User (409 Conflict Validation)",
@@ -117,11 +104,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
             },
             "description": "Edge case: Attempts to register a user with an existing email to test clean domain exception handling (ConflictException 409)."
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete User",
@@ -130,11 +122,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "{{userId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}"
+              ]
             },
             "description": "Deletes a user by ID."
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -148,11 +146,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
             },
             "description": "Fetches all categories."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Category by ID",
@@ -161,11 +164,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/categories/{{categoryId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories", "{{categoryId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{{categoryId}}"
+              ]
             },
             "description": "Fetches category details including parent and children."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Category Tree",
@@ -174,11 +183,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/categories/{{categoryId}}/tree",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories", "{{categoryId}}", "tree"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{{categoryId}}",
+                "tree"
+              ]
             },
             "description": "Returns hierarchical tree structure for a category."
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Root Category",
@@ -190,7 +206,9 @@
                   "var jsonData = pm.response.json();",
                   "if (jsonData.id) { pm.collectionVariables.set('categoryId', jsonData.id); }"
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -204,15 +222,20 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"Gadgets and hardware\"\n}"
+              "raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"Tech gadgets and devices\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
             },
             "description": "Creates a new root category."
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Subcategory (with parentId)",
@@ -224,7 +247,9 @@
                   "var jsonData = pm.response.json();",
                   "if (jsonData.id) { pm.collectionVariables.set('subcategoryId', jsonData.id); }"
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -242,11 +267,145 @@
             },
             "url": {
               "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
             },
             "description": "Creates a child category linking parentId to test recursive category trees."
-          }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subcategory (with non existing parentId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('subcategoryId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Laptops\",\n  \"description\": \"Portable workstation computers\",\n  \"parentId\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subcategory Cell Phones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('subcategoryId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cell Phones\",\n  \"description\": \"Portable wireless devices\",\n  \"parentId\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subcategory Phones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('subcategoryId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Phones\",\n  \"description\": \"Phone devices\",\n  \"parentId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -260,11 +419,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/products",
-              "host": ["{{baseUrl}}"],
-              "path": ["products"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
             },
             "description": "Fetches all products with category relations."
-          }
+          },
+          "response": []
         },
         {
           "name": "Search Products (laptop)",
@@ -272,18 +436,24 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/products/search?q=laptop",
-              "host": ["{{baseUrl}}"],
-              "path": ["products", "search"],
+              "raw": "{{baseUrl}}/products/search?q=phone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "search"
+              ],
               "query": [
                 {
                   "key": "q",
-                  "value": "laptop"
+                  "value": "phone"
                 }
               ]
             },
             "description": "Searches products by term using query-isolated cache keys."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Product by ID",
@@ -292,14 +462,20 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/products/{{productId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["products", "{{productId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
             },
             "description": "Fetches a specific product by ID."
-          }
+          },
+          "response": []
         },
         {
-          "name": "Create Product",
+          "name": "Create Product Dev Workstation",
           "event": [
             {
               "listen": "test",
@@ -308,7 +484,9 @@
                   "var jsonData = pm.response.json();",
                   "if (jsonData.id) { pm.collectionVariables.set('productId', jsonData.id); }"
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -322,15 +500,149 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Developer Laptop\",\n  \"description\": \"High performance workstation\",\n  \"price\": 1299.99,\n  \"stock\": 50,\n  \"categoryId\": 1\n}"
+              "raw": "{\n  \"name\": \"Developer Workstation Laptop\",\n  \"description\": \"High performance laptop workstation\",\n  \"price\": 1499.99,\n  \"stock\": 10,\n  \"categoryId\": 2\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/products",
-              "host": ["{{baseUrl}}"],
-              "path": ["products"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
             },
             "description": "Creates a new product."
-          }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product HR Workstation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('productId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"HR Workstation Laptop\",\n  \"description\": \"Mid performance laptop workstation\",\n  \"price\": 999.99,\n  \"stock\": 10,\n  \"categoryId\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product Iphone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('productId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"iPhone 17 Pro Max\",\n  \"description\": \"6.9” iPhone 17 Pro Max*\",\n  \"price\": 1199.99,\n  \"stock\": 20,\n  \"categoryId\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product (with non-existing categoryId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('productId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Developer Laptop\",\n  \"description\": \"High performance workstation\",\n  \"price\": 1299.99,\n  \"stock\": 50,\n  \"categoryId\": 6\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            }
+          },
+          "response": []
         },
         {
           "name": "Process Product Batch",
@@ -348,11 +660,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/products/batch",
-              "host": ["{{baseUrl}}"],
-              "path": ["products", "batch"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "batch"
+              ]
             },
             "description": "Processes batch of products including reporting of failed IDs."
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Product",
@@ -361,11 +679,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/products/{{productId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["products", "{{productId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
             },
             "description": "Deletes a product by ID."
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -379,11 +703,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
             },
             "description": "Fetches all orders."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Orders by User ID",
@@ -392,8 +721,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/orders?userId={{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ],
               "query": [
                 {
                   "key": "userId",
@@ -402,7 +735,8 @@
               ]
             },
             "description": "Fetches orders for a specific user."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Order by ID",
@@ -411,11 +745,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/orders/{{orderId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders", "{{orderId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
             },
             "description": "Fetches order details."
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Full Order Details (Enriched & Non-Circular)",
@@ -424,11 +764,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/orders/{{orderId}}/full",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders", "{{orderId}}", "full"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "full"
+              ]
             },
             "description": "Fetches order with user and items details (validating non-circular JSON structure)."
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Order",
@@ -458,11 +805,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
             },
             "description": "Creates a new order and deducts product stock."
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Empty Items Order (400 Bad Request Validation)",
@@ -480,11 +832,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
             },
             "description": "Edge case: Attempts to create an order with empty items array to test 400 Bad Request validation."
-          }
+          },
+          "response": []
         },
         {
           "name": "Process Order Payment",
@@ -493,11 +850,18 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/orders/{{orderId}}/pay",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders", "{{orderId}}", "pay"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "pay"
+              ]
             },
             "description": "Processes payment for an order with bounded retry limits."
-          }
+          },
+          "response": []
         },
         {
           "name": "Update Order Status",
@@ -515,11 +879,18 @@
             },
             "url": {
               "raw": "{{baseUrl}}/orders/{{orderId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders", "{{orderId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
             },
             "description": "Updates order status (pending, confirmed, shipped, delivered, cancelled)."
-          }
+          },
+          "response": []
         },
         {
           "name": "Cancel Order (Idempotent Stock Restoration)",
@@ -528,13 +899,182 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders", "{{orderId}}", "cancel"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "cancel"
+              ]
             },
             "description": "Cancels a pending order and restores stock idempotently."
-          }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order (with non-existing productId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('orderId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": 1,\n    \"items\": [\n        {\n            \"productId\": 6,\n            \"quantity\": 30\n        },\n        {\n            \"productId\": 6,\n            \"quantity\": 6\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order (with multiple items with the same productId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('orderId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": 1,\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 3\n        },\n        {\n            \"productId\": 1,\n            \"quantity\": 3\n        },\n        {\n            \"productId\": 2,\n            \"quantity\": 3\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order (with not enough stock for productId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('orderId', jsonData.id); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "packages": {},
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userId\": 1,\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 30\n        },\n        {\n            \"productId\": 2,\n            \"quantity\": 8\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "response": []
         }
       ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "userId",
+      "value": "1"
+    },
+    {
+      "key": "productId",
+      "value": "1"
+    },
+    {
+      "key": "categoryId",
+      "value": "1"
+    },
+    {
+      "key": "subcategoryId",
+      "value": "2"
+    },
+    {
+      "key": "orderId",
+      "value": "1"
     }
   ]
 }

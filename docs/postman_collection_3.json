@@ -1,0 +1,395 @@
+{
+  "info": {
+    "_postman_id": "f9a4e3c2-8d15-4e6f-a3b1-7c8d9e0f1a2b",
+    "name": "03 Product Engineer Challenge API - Categories Collection 3",
+    "description": "Postman Collection 3 for Category API testing including Fail-Fast enhancements: Create Root Category, Create Subcategory with Invalid Parent ID (Fail-Fast 400), Create Subcategory with Parent ID, Get All Categories, Get Category by ID, Fail-Fast Zero/Negative Category ID Validations (400 Bad Request), Get Category Tree, and Fail-Fast Category Tree ID Validation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subcategoryId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create Root Category",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('categoryId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Automated Root Hardware\",\n  \"description\": \"Root category for Collection 4 automated tests\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        },
+        "description": "Creates a root category without parentId."
+      }
+    },
+    {
+      "name": "Create Category - Fail-Fast Invalid Parent ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast parent category validation error', function () {",
+              "        var isExpectedError = jsonData.message && (",
+              "            jsonData.message.includes('does not exist') ||",
+              "            jsonData.message.includes('must be greater than') ||",
+              "            (Array.isArray(jsonData.message) && jsonData.message.some(function(m) { return m.includes('parentId'); }))",
+              "        );",
+              "        pm.expect(isExpectedError).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Invalid Parent Subcategory\",\n  \"parentId\": 0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to create a category with parentId 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Create Subcategory",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('subcategoryId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Automated Laptops\",\n  \"description\": \"Subcategory linked to root category\",\n  \"parentId\": {{categoryId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        },
+        "description": "Creates a subcategory linked to the created root category."
+      }
+    },
+    {
+      "name": "Get All Categories",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response is an array of categories', function () {",
+              "        pm.expect(Array.isArray(jsonData)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        },
+        "description": "Fetches all categories."
+      }
+    },
+    {
+      "name": "Get Category by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('categoryId'), 10);",
+              "    pm.test('Category ID matches created root category', function () {",
+              "        pm.expect(jsonData.id).to.eql(targetId);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/categories/{{categoryId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories",
+            "{{categoryId}}"
+          ]
+        },
+        "description": "Fetches the specific category created using categoryId."
+      }
+    },
+    {
+      "name": "Get Category by ID - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/categories/0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories",
+            "0"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting category ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get Category by ID - Fail-Fast Negative ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/categories/-3",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories",
+            "-3"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting negative category ID -3, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get Category Tree by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('categoryId'), 10);",
+              "    pm.test('Tree root ID matches categoryId', function () {",
+              "        pm.expect(jsonData.id).to.eql(targetId);",
+              "    });",
+              "    pm.test('Tree contains children array', function () {",
+              "        pm.expect(Array.isArray(jsonData.children)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/categories/{{categoryId}}/tree",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories",
+            "{{categoryId}}",
+            "tree"
+          ]
+        },
+        "description": "Fetches the category tree for the root category."
+      }
+    },
+    {
+      "name": "Get Category Tree - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/categories/0/tree",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories",
+            "0",
+            "tree"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting category tree for ID 0, expecting 400 Bad Request."
+      }
+    }
+  ]
+}

@@ -1,0 +1,366 @@
+{
+  "info": {
+    "_postman_id": "d8e3f2a1-7c94-4b5d-b3a2-9e8c7f6a5b42",
+    "name": "02 Product Engineer Challenge API - User Management Collection 2",
+    "description": "Postman Collection 2 for automated User management lifecycle flow including Fail-Fast ID validations: Create User, Create Duplicate Email User (409 Conflict), Get All Users, Get User by ID, Fail-Fast Zero/Negative ID Validations (400 Bad Request), Delete User, and Get All Users.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('userId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"name\": \"John Doe\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        },
+        "description": "Creates a new user distinct from initial users."
+      }
+    },
+    {
+      "name": "Create Duplicate Email User (409 Conflict Validation)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 409 Conflict', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "if (pm.response.code === 409) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Error message contains Conflict or duplicate email', function () {",
+              "        pm.expect(jsonData.message).to.include('already exists');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"name\": \"Duplicate John\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        },
+        "description": "Attempts to create a user with an existing email, verifying 409 Conflict response."
+      }
+    },
+    {
+      "name": "Get All Users",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response is an array of users', function () {",
+              "        pm.expect(Array.isArray(jsonData)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        },
+        "description": "Fetches all users after user creation."
+      }
+    },
+    {
+      "name": "Get User by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('userId'), 10);",
+              "    pm.test('User ID matches created user', function () {",
+              "        pm.expect(jsonData.id).to.eql(targetId);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        },
+        "description": "Fetches the specific user created in step 1 using userId."
+      }
+    },
+    {
+      "name": "Get User by ID - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "0"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting user ID 0, expecting 400 Bad Request without hitting DB."
+      }
+    },
+    {
+      "name": "Get User by ID - Fail-Fast Negative ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/-5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "-5"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting negative user ID -5, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Delete User - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "0"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to delete user ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Delete User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        },
+        "description": "Deletes the specific user created in step 1 using userId."
+      }
+    },
+    {
+      "name": "Get All Users (After Deletion)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('userId'), 10);",
+              "    pm.test('Deleted user is no longer present in list', function () {",
+              "        var found = jsonData.some(function(user) { return user.id === targetId; });",
+              "        pm.expect(found).to.be.false;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        },
+        "description": "Fetches all users after user deletion, verifying the deleted user is absent."
+      }
+    }
+  ]
+}

@@ -1,0 +1,424 @@
+{
+  "info": {
+    "_postman_id": "e8b5d4c3-7a26-4f1e-9b3d-8e9f0a1b2c3d",
+    "name": "04 Product Engineer Challenge API - Products Collection 4",
+    "description": "Postman Collection 4 for Product API testing including Fail-Fast enhancements: Create Product, Create Product with Invalid Category ID (Fail-Fast 400), Get All Products, Search Products, Get Product by ID, Fail-Fast Zero/Negative Product ID Validations (400 Bad Request), Process Product Batch Fail-Fast Invalid IDs, Delete Product Fail-Fast Zero ID (400 Bad Request), and Delete Product.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('productId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Automated Workstation Pro\",\n  \"description\": \"High performance workstation for automated Postman testing\",\n  \"price\": 2500,\n  \"stock\": 15\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Creates a new product for Collection 5 automated testing."
+      }
+    },
+    {
+      "name": "Create Product - Fail-Fast Invalid Category ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast category validation error', function () {",
+              "        var isExpectedError = jsonData.message && (",
+              "            jsonData.message.includes('does not exist') ||",
+              "            jsonData.message.includes('must be greater than') ||",
+              "            (Array.isArray(jsonData.message) && jsonData.message.some(function(m) { return m.includes('categoryId'); }))",
+              "        );",
+              "        pm.expect(isExpectedError).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Invalid Category Laptop\",\n  \"price\": 1200,\n  \"categoryId\": 0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to create a product with categoryId 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get All Products",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response is an array of products', function () {",
+              "        pm.expect(Array.isArray(jsonData)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Fetches all products."
+      }
+    },
+    {
+      "name": "Search Products",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response is an array of matching search products', function () {",
+              "        pm.expect(Array.isArray(jsonData)).to.be.true;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/search?q=Workstation",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "Workstation"
+            }
+          ]
+        },
+        "description": "Searches products by keyword."
+      }
+    },
+    {
+      "name": "Get Product by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    var targetId = parseInt(pm.collectionVariables.get('productId'), 10);",
+              "    pm.test('Product ID matches created product', function () {",
+              "        pm.expect(jsonData.id).to.eql(targetId);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/{{productId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "{{productId}}"
+          ]
+        },
+        "description": "Fetches the specific product created using productId."
+      }
+    },
+    {
+      "name": "Get Product by ID - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "0"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting product ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Get Product by ID - Fail-Fast Negative ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/-7",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "-7"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation by requesting negative product ID -7, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Process Product Batch - Fail-Fast Invalid IDs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Batch result contains failedProductIds with [0, -1] without DB queries', function () {",
+              "        pm.expect(jsonData.success).to.be.true;",
+              "        pm.expect(jsonData.failedProductIds).to.include(0);",
+              "        pm.expect(jsonData.failedProductIds).to.include(-1);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productIds\": [0, -1]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "batch"
+          ]
+        },
+        "description": "Verifies Fail-Fast batch processing for product IDs <= 0, reporting failedProductIds without hitting DB."
+      }
+    },
+    {
+      "name": "Delete Product - Fail-Fast Zero ID (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "if (pm.response.code === 400) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.test('Response contains Fail-Fast positive integer validation error message', function () {",
+              "        pm.expect(jsonData.message).to.include('must be a positive integer greater than 0');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "0"
+          ]
+        },
+        "description": "Verifies Fail-Fast validation when attempting to delete product ID 0, expecting 400 Bad Request."
+      }
+    },
+    {
+      "name": "Delete Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/products/{{productId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products",
+            "{{productId}}"
+          ]
+        },
+        "description": "Deletes the specific product created in step 1."
+      }
+    }
+  ]
+}
