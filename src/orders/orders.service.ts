@@ -13,8 +13,8 @@ const paymentService = {
   async processPayment(orderId: number, amount: number): Promise<{ success: boolean; transactionId: string }> {
     await new Promise(resolve => setTimeout(resolve, 5));
     
-    // Simulate payment failure for orderId 99999 (Failure 1)
-    if (orderId === 99999) {
+    // Simulate payment service failure for Failure 1 (when order amount >= 9999)
+    if (amount >= 9999) {
       throw new Error('Payment service unavailable');
     }
     

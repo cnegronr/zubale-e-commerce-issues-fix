@@ -202,13 +202,97 @@
       }
     },
     {
+      "name": "0d. Setup - Create High Value Product for Hanging Retries Simulation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('hangingProductId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"High Value Product\",\n  \"description\": \"Product with price 9999 to trigger payment retries failure simulation\",\n  \"price\": 9999,\n  \"stock\": 10,\n  \"categoryId\": {{validCategoryId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "products"
+          ]
+        },
+        "description": "Setup step: Creates a high-value product ($9999) to trigger payment service retries failure."
+      }
+    },
+    {
+      "name": "0e. Setup - Create Order for Hanging Retries Simulation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData && jsonData.id) {",
+              "        pm.collectionVariables.set('hangingOrderId', jsonData.id.toString());",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{validUserId}},\n  \"items\": [\n    {\n      \"productId\": {{hangingProductId}},\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders"
+          ]
+        },
+        "description": "Setup step: Creates an order with total 9999 for payment service retries failure simulation."
+      }
+    },
+    {
       "name": "Failure 1: Payment Service Hanging & Retries Failure (INSTRUCTIONS.md)",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Simulated Failure: Payment retries fail or timeout', function () {",
+              "pm.test('Simulated Failure: Payment retries fail with 500 error after 1000 retries loop', function () {",
               "    pm.expect(pm.response.code).to.be.oneOf([500, 503, 504]);",
               "});"
             ],
@@ -220,17 +304,17 @@
         "method": "POST",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/orders/99999/pay",
+          "raw": "{{baseUrl}}/orders/{{hangingOrderId}}/pay",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "orders",
-            "99999",
+            "{{hangingOrderId}}",
             "pay"
           ]
         },
-        "description": "Simulates INSTRUCTIONS.md failure: Extremely slow or hanging request due to 1000 payment retries and payment service unavailability."
+        "description": "Simulates INSTRUCTIONS.md failure: Executes 1000 retries loop on payment failure and throws 500 Internal Server Error."
       }
     },
     {
