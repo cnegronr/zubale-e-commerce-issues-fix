@@ -167,14 +167,24 @@ describe('OrdersController (e2e)', () => {
       .expect(404);
   });
 
-  it('GET /orders/1/full - should return order with full details without circular references', () => {
+  it('GET /orders/1/full - should return order with full details including user latestOrder summary without circular references', () => {
     return request(app.getHttpServer())
       .get('/orders/1/full')
       .expect(200)
       .expect((res) => {
         expect(res.body.user).toBeDefined();
-        expect(res.body.user.latestOrder).toBeUndefined();
+        expect(res.body.user.latestOrder).toBeDefined();
+        expect(res.body.user.latestOrder.id).toBe(1);
       });
+  });
+
+  it('GET /orders/0/full - should return 400 Bad Request for zero ID', async () => {
+    const ordersService = app.get(OrdersService);
+    await expect(ordersService.getOrderWithFullDetails(0)).rejects.toThrow(BadRequestException);
+
+    return request(app.getHttpServer())
+      .get('/orders/0/full')
+      .expect(400);
   });
 
   it('GET /orders/99/full - should return 404 when full details order not found', () => {

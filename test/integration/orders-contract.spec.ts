@@ -122,10 +122,15 @@ describe('Orders Contract & Integration Tests', () => {
 
   describe('API Contract: JSON Serialization Guarantee (getOrderWithFullDetails)', () => {
     it('MUST return a clean JSON serializable response without circular reference errors', async () => {
-      const response = await ordersService.getOrderWithFullDetails(1);
+      const response: any = await ordersService.getOrderWithFullDetails(1);
 
       expect(() => JSON.stringify(response)).not.toThrow();
-      expect(response.user.latestOrder).toBeUndefined();
+      expect(response.user.latestOrder).toBeDefined();
+      expect(response.user.latestOrder.id).toEqual(1);
+    });
+
+    it('throws BadRequestException for non-positive order id', async () => {
+      await expect(ordersService.getOrderWithFullDetails(0)).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when order full details is not found', async () => {

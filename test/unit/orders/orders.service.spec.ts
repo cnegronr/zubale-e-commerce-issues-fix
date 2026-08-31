@@ -352,16 +352,25 @@ describe('OrdersService', () => {
   });
 
   describe('getOrderWithFullDetails', () => {
-    it('should return enriched order with non-circular user object', async () => {
+    it('should return enriched order with non-circular user latestOrder summary', async () => {
       const fullOrder = {
         ...mockOrder,
-        user: { ...mockUser, latestOrder: { id: 1 } },
+        user: { ...mockUser },
       };
-      ordersRepository.findOne.mockResolvedValue(fullOrder);
+      ordersRepository.findOne.mockResolvedValue(fullOrder as any);
 
       const result = await service.getOrderWithFullDetails(1);
-      expect(result.user.latestOrder).toBeUndefined();
+      expect(result.user.latestOrder).toEqual({
+        id: mockOrder.id,
+        status: mockOrder.status,
+        total: mockOrder.total,
+        createdAt: mockOrder.createdAt,
+      });
       expect(() => JSON.stringify(result)).not.toThrow();
+    });
+
+    it('should throw BadRequestException for non-positive order id', async () => {
+      await expect(service.getOrderWithFullDetails(0)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if full order not found', async () => {

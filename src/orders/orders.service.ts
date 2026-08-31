@@ -222,6 +222,10 @@ export class OrdersService {
   }
 
   async getOrderWithFullDetails(id: number): Promise<any> {
+    if (!id || id <= 0) {
+      throw new BadRequestException(`ID parameter "${id}" must be a positive integer greater than 0`);
+    }
+
     const order = await this.ordersRepository.findOne({
       where: { id },
       relations: ['user', 'items', 'items.product', 'items.product.category'],
@@ -239,9 +243,15 @@ export class OrdersService {
         email: order.user.email,
         isActive: order.user.isActive,
         createdAt: order.user.createdAt,
+        latestOrder: {
+          id: order.id,
+          status: order.status,
+          total: order.total,
+          createdAt: order.createdAt,
+        },
       };
     }
 
-    return JSON.parse(JSON.stringify(enriched));
+    return enriched;
   }
 }
