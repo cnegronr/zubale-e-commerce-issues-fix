@@ -457,13 +457,30 @@ export class ExternalPaymentService {
 
 ---
 
-### ❓ Pregunta 5.2: ¿Cómo estructurarías la contenedorización con Docker y la separación de este monolito modular en microservicios independientes?
+### ❓ Pregunta 5.2: ¿Cómo estructurarías la contenedorización con Docker y la separación de este monolito modular en microservicios independientes? ¿Es recomendable crear un microservicio separado de Pagos?
 
 * **Respuesta del Candidato**:
-  Para separar el monolito modular NestJS en microservicios independientes (ej. `Users Service`, `Products Service`, `Orders Service`), crearemos imágenes Docker ligeras utilizando **Multi-stage builds** y un archivo `docker-compose.yml` para desarrollo local con PostgreSQL, Redis y PgBouncer.
+  Para separar el monolito modular NestJS en microservicios independientes, la descomposición estándar y óptima se compone de **4 servicios desacoplados**:
+  1. **Users Microservice**: Gestión de cuentas, autenticación, perfiles y direcciones.
+  2. **Products Microservice**: Catálogo de productos, categorías, búsqueda con caché Redis y gestión de stock.
+  3. **Orders Microservice**: Ciclo de vida de órdenes, carritos, agregación de ítems y máquina de estados (`PENDING`, `CONFIRMED`, `SHIPPED`, `DELIVERED`, `CANCELLED`).
+  4. **Payments Microservice (Servicio Separado de Pagos)**: Orquestación de pasarelas externas (Stripe, MercadoPago, PayPal), webhooks de confirmación, reintentos y reembolsos.
+
+* **Escenario de Entrevista**:
+  > *Entrevistador*: "¿Por qué consideras indispensable separar Pagos en un microservicio dedicado en lugar de mantenerlo dentro del servicio de Órdenes?"
+  >
+  > *Candidato*: "Separar Pagos en su propio microservicio es una **decisión arquitectónica crítica** por 5 razones:
+  > 1. **Aislamiento del Alcance PCI-DSS (*PCI-DSS Scope Reduction*)**: Las normativas financieras exigen rigurosas auditorías de seguridad sobre cualquier sistema que procese información de tarjetas de crédito. Al aislar Pagos en un contenedor y repositorio dedicado, el 95% de la plataforma (Users, Products, Orders) queda legal y técnicamente fuera del alcance de auditorías PCI-DSS, ahorrando cientos de miles de dólares en certificaciones.
+  > 2. **Aislamiento del Radio de Falla (*Blast Radius*)**: La comunicación con pasarelas de pago externas sufre de latencia volátil de red y caídas no planificadas de proveedores terceros. Si la pasarela de pagos cae, el microservicio de pagos abre su Circuit Breaker y encola reintentos, pero **la navegación del catálogo, el login de usuarios y la creación de pedidos en borrador siguen operando al 100%**.
+  > 3. **Ingestión Asíncrona de Webhooks de Pasarelas**: Las pasarelas de pago confirman las transacciones mediante webhooks HTTP asíncronos. Un servicio de pagos dedicado con alta disponibilidad garantiza recibir, validar firmas criptográficas y publicar eventos de pago (`PaymentSucceededEvent`) en Kafka de forma idempotente, incluso durante despliegues o picos de tráfico en el servicio de órdenes.
+  > 4. **Políticas de Escalabilidad Asimétricas**: Las órdenes requieren transacciones SQL rápidas en base de datos local (< 15 ms), mientras que las peticiones de pago dependen de llamadas I/O a la red pública (1 a 3 segundos). Separar los servicios permite asignarles diferentes límites de CPU/memoria, réplicas y políticas de timeout independientes.
+  > 5. **Gobernanza y Seguridad de Secretos**: Las claves privadas financieras (`STRIPE_SECRET_KEY`, certificados de merchants) se restringen exclusivamente a la bóveda de secretos (*AWS Secrets Manager / HashiCorp Vault*) del contenedor de pagos, impidiendo que desarrolladores o servicios de catálogo tengan acceso a credenciales monetarias."
 
 #### 📚 Glosario de Conceptos:
 - **Multi-stage Build**: Técnica en Dockerfile que permite compilar la aplicación en una etapa temporal (*builder*) y copiar solo los artefactos compilados finales (`dist/`) a una imagen final ligera (Alpine Linux), reduciendo el tamaño de la imagen de 1GB a 120MB.
+- **PCI-DSS Compliance Scope**: Estándar de seguridad para la industria de tarjetas de pago. Separar el servicio de pagos reduce la superficie auditada aislando tokens y transacciones bancarias.
+- **Blast Radius (Radio de Impacto)**: Principio de resiliencia distribuida que garantiza que la degradación de un componente externo (ej. pasarela de pago) no provoque una falla en cascada en el resto de la aplicación.
+- **Webhook Idempotency**: Garantía de que procesar múltiples veces un webhook redundante emitido por la pasarela de pago (debido a reintentos de red) produzca exactamente el mismo efecto de confirmación sin duplicar cargos ni estados.
 
 #### 💻 Configuración de Archivos de Contenedorización:
 
@@ -489,25 +506,39 @@ EXPOSE 3000
 CMD ["node", "dist/src/main.js"]
 ```
 
-##### 2. `docker-compose.yml` para Entorno Local Completo:
+##### 2. `docker-compose.yml` para Entorno Distribuido Local:
 ```yaml
 version: '3.8'
 
 services:
-  api:
-    build: .
+  orders-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
+      - SERVICE_NAME=orders-service
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=zubale_ecommerce
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - PAYMENTS_SERVICE_URL=http://payments-service:3001
     depends_on:
       - postgres
+      - redis
+      - payments-service
+
+  payments-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - SERVICE_NAME=payments-service
+      - STRIPE_SECRET_KEY=sk_test_mock_key
+      - REDIS_HOST=redis
+    depends_on:
       - redis
 
   postgres:
@@ -622,21 +653,24 @@ spec:
                                                  │
                                                  ▼
                              [ AWS EKS Cluster (Kubernetes Namespace) ]
-             ┌───────────────────────────────────┼───────────────────────────────────┐
-             │                                   │                                   │
-             ▼                                   ▼                                   ▼
-   [ Users Microservice ]             [ Products Microservice ]           [ Orders Microservice ]
-      (3 to 10 Pods)                     (3 to 20 Pods)                     (3 to 15 Pods)
-             │                                   │                                   │
-             └───────────────────────────────────┼───────────────────────────────────┘
-                                                 │
-                                                 ▼
-                                     [ Apache Kafka Event Bus ]
-                                                 │
-                        ┌────────────────────────┴────────────────────────┐
-                        ▼                                                 ▼
-           [ Amazon ElastiCache Redis ]                   [ AWS Aurora PostgreSQL ]
-            (Caché y Redlock Cluster)                    (Primary Write + 2 Read Replicas)
+             ┌───────────────────────┬───────────────────────┬───────────────────────┐
+             │                       │                       │                       │
+             ▼                       ▼                       ▼                       ▼
+   [ Users Microservice ]  [ Products Microservice ] [ Orders Microservice ] [ Payments Microservice ]
+      (3 to 10 Pods)          (3 to 20 Pods)          (3 to 15 Pods)          (3 to 10 Pods)
+             │                       │                       │                       │
+             │                       │                       │                       ▼
+             │                       │                       │           [ External Gateways ]
+             │                       │                       │           (Stripe/MercadoPago)
+             └───────────────────────┼───────────────────────┴───────────────────────┘
+                                     │
+                                     ▼
+                         [ Apache Kafka Event Bus ]
+                                     │
+            ┌────────────────────────┴────────────────────────┐
+            ▼                                                 ▼
+[ Amazon ElastiCache Redis ]                   [ AWS Aurora PostgreSQL ]
+ (Caché y Redlock Cluster)                    (Primary Write + 2 Read Replicas)
 ```
 
 ---
