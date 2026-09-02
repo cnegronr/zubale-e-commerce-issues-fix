@@ -19,9 +19,7 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     userId: 1,
     status: OrderStatus.PENDING,
     total: 100,
-    items: [
-      { productId: 1, quantity: 5 },
-    ],
+    items: [{ productId: 1, quantity: 5 }],
   };
 
   beforeEach(async () => {
@@ -53,7 +51,9 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     };
 
     const mockProductsService = {
-      findOne: jest.fn().mockResolvedValue({ id: 1, name: 'Product 1', stock: 10 }),
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ id: 1, name: 'Product 1', stock: 10 }),
       updateStock: jest.fn(async (id: number, newStock: number) => {
         stockRestoredCount += 5;
         return { id: 1, name: 'Product 1', stock: newStock } as any;
@@ -100,14 +100,18 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
     it('MUST throw BadRequestException when create order payload has empty items []', async () => {
       const dto = { userId: 1, items: [] };
 
-      await expect(ordersService.create(dto)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.create(dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('Payment Processing Contract: Non-Pending Order Payment Rejection', () => {
     it('MUST throw BadRequestException when attempting to process payment for a cancelled order', async () => {
       await ordersService.cancel(1);
-      await expect(ordersService.processPayment(1)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.processPayment(1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -124,41 +128,77 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
 
   describe('Order Status Update Contract: State Machine and Validation Rules (updateStatus)', () => {
     it('MUST throw BadRequestException (400 Bad Request) when orderId does not exist', async () => {
-      await expect(ordersService.updateStatus(999, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.updateStatus(999, OrderStatus.SHIPPED),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('MUST throw BadRequestException (400 Bad Request) when target status is invalid', async () => {
-      await expect(ordersService.updateStatus(1, OrderStatus.CANCELLED)).rejects.toThrow(BadRequestException);
-      await expect(ordersService.updateStatus(1, 'INVALID' as any)).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.updateStatus(1, OrderStatus.CANCELLED),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.updateStatus(1, 'INVALID' as any),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('MUST throw BadRequestException when attempting to update pending, cancelled or delivered orders', async () => {
-      await expect(ordersService.updateStatus(1, OrderStatus.SHIPPED)).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.updateStatus(1, OrderStatus.SHIPPED),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('MUST throw BadRequestException when attempting to update directly to delivered when order is not shipped', async () => {
-      await expect(ordersService.updateStatus(1, OrderStatus.DELIVERED)).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.updateStatus(1, OrderStatus.DELIVERED),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('MUST be idempotent when updating an order that is already shipped or delivered', async () => {
-      jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.SHIPPED });
-      const resShippedAgain = await ordersService.updateStatus(1, OrderStatus.SHIPPED);
+      jest
+        .spyOn(ordersService, 'findOne')
+        .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.SHIPPED });
+      const resShippedAgain = await ordersService.updateStatus(
+        1,
+        OrderStatus.SHIPPED,
+      );
       expect(resShippedAgain.status).toBe(OrderStatus.SHIPPED);
 
-      jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.DELIVERED });
-      const resDeliveredAgain = await ordersService.updateStatus(1, OrderStatus.DELIVERED);
+      jest
+        .spyOn(ordersService, 'findOne')
+        .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.DELIVERED });
+      const resDeliveredAgain = await ordersService.updateStatus(
+        1,
+        OrderStatus.DELIVERED,
+      );
       expect(resDeliveredAgain.status).toBe(OrderStatus.DELIVERED);
     });
 
     it('MUST throw BadRequestException when order id or userId is 0 or negative', async () => {
-      await expect(ordersService.findOne(0)).rejects.toThrow(BadRequestException);
-      await expect(ordersService.findByUser(0)).rejects.toThrow(BadRequestException);
-      await expect(ordersService.create({ userId: 0, items: [{ productId: 1, quantity: 1 }] })).rejects.toThrow(BadRequestException);
-      await expect(ordersService.create({ userId: 1, items: [{ productId: 0, quantity: 1 }] })).rejects.toThrow(BadRequestException);
+      await expect(ordersService.findOne(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(ordersService.findByUser(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(
+        ordersService.create({
+          userId: 0,
+          items: [{ productId: 1, quantity: 1 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.create({
+          userId: 1,
+          items: [{ productId: 0, quantity: 1 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('MUST format ThrottlerException with 429 status code', () => {
-      const { ThrottlerExceptionFilter } = require('../../src/common/filters/throttler-exception.filter');
+      const {
+        ThrottlerExceptionFilter,
+      } = require('../../src/common/filters/throttler-exception.filter');
       const filter = new ThrottlerExceptionFilter();
       const mockJson = jest.fn();
       const mockStatus = jest.fn().mockReturnValue({ json: mockJson });

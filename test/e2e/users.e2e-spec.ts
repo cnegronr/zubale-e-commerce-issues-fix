@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, BadRequestException } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  BadRequestException,
+} from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
@@ -40,7 +44,12 @@ describe('UsersController (e2e)', () => {
         if (u.email === 'error@example.com') {
           return Promise.reject(new Error('Unknown DB Error'));
         }
-        return Promise.resolve({ ...u, id: 1, isActive: true, createdAt: new Date() });
+        return Promise.resolve({
+          ...u,
+          id: 1,
+          isActive: true,
+          createdAt: new Date(),
+        });
       }),
       remove: jest.fn().mockResolvedValue(mockUser),
     };
@@ -102,27 +111,19 @@ describe('UsersController (e2e)', () => {
 
   it('GET /users/1 - should return user by id (cached and uncached)', async () => {
     cacheManager.get.mockResolvedValueOnce(mockUser);
-    await request(app.getHttpServer())
-      .get('/users/1')
-      .expect(200);
+    await request(app.getHttpServer()).get('/users/1').expect(200);
 
     cacheManager.get.mockResolvedValueOnce(null);
-    await request(app.getHttpServer())
-      .get('/users/1')
-      .expect(200);
+    await request(app.getHttpServer()).get('/users/1').expect(200);
   });
 
   it('GET /users/0 - should return 400 Bad Request for positive int pipe failure', async () => {
     await expect(usersService.findOne(0)).rejects.toThrow(BadRequestException);
-    await request(app.getHttpServer())
-      .get('/users/0')
-      .expect(400);
+    await request(app.getHttpServer()).get('/users/0').expect(400);
   });
 
   it('GET /users/99 - should return 404 if user not found', () => {
-    return request(app.getHttpServer())
-      .get('/users/99')
-      .expect(404);
+    return request(app.getHttpServer()).get('/users/99').expect(404);
   });
 
   it('POST /users - should create a new user with valid DTO', () => {
@@ -157,8 +158,6 @@ describe('UsersController (e2e)', () => {
   });
 
   it('DELETE /users/1 - should remove a user by id', () => {
-    return request(app.getHttpServer())
-      .delete('/users/1')
-      .expect(200);
+    return request(app.getHttpServer()).delete('/users/1').expect(200);
   });
 });

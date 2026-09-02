@@ -29,7 +29,10 @@ describe('Concurrency & System Resiliency Tests', () => {
           items: [{ id: 1, productId: 1, quantity: 1, price: 100 }],
         };
       }),
-      create: jest.fn((dto) => ({ ...dto, id: Math.floor(Math.random() * 1000) })),
+      create: jest.fn((dto) => ({
+        ...dto,
+        id: Math.floor(Math.random() * 1000),
+      })),
       save: jest.fn((order) => Promise.resolve(order)),
     };
 
@@ -44,15 +47,27 @@ describe('Concurrency & System Resiliency Tests', () => {
 
     const mockProductsService = {
       findOne: jest.fn().mockImplementation(async () => {
-        return { id: 1, name: 'Limited Stock Item', stock: currentStock, price: 100 };
+        return {
+          id: 1,
+          name: 'Limited Stock Item',
+          stock: currentStock,
+          price: 100,
+        };
       }),
-      updateStock: jest.fn().mockImplementation(async (id: number, newStock: number) => {
-        if (newStock < 0) {
-          throw new Error('Stock cannot be negative');
-        }
-        currentStock = newStock;
-        return { id: 1, name: 'Limited Stock Item', stock: currentStock, price: 100 };
-      }),
+      updateStock: jest
+        .fn()
+        .mockImplementation(async (id: number, newStock: number) => {
+          if (newStock < 0) {
+            throw new Error('Stock cannot be negative');
+          }
+          currentStock = newStock;
+          return {
+            id: 1,
+            name: 'Limited Stock Item',
+            stock: currentStock,
+            price: 100,
+          };
+        }),
     };
 
     const mockCacheManager = {
@@ -99,10 +114,12 @@ describe('Concurrency & System Resiliency Tests', () => {
   describe('Resiliency: Payment Retry Bounded Execution Limits', () => {
     it('MUST cap payment retry attempts to a maximum of 5 attempts to prevent blocking HTTP sockets', async () => {
       let attemptsCounter = 0;
-      const mathRandomSpy = jest.spyOn(Math, 'random').mockImplementation(() => {
-        attemptsCounter++;
-        return 0.05; // Force payment service to fail
-      });
+      const mathRandomSpy = jest
+        .spyOn(Math, 'random')
+        .mockImplementation(() => {
+          attemptsCounter++;
+          return 0.05; // Force payment service to fail
+        });
 
       const startTime = Date.now();
       try {

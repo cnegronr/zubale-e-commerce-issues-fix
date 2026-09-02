@@ -1,7 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProductsController, CategoriesController } from '../../../src/products/products.controller';
+import {
+  ProductsController,
+  CategoriesController,
+} from '../../../src/products/products.controller';
 import { ProductsService } from '../../../src/products/products.service';
-import { CreateProductDto, CreateCategoryDto } from '../../../src/products/dto/create-product.dto';
+import {
+  CreateProductDto,
+  CreateCategoryDto,
+} from '../../../src/products/dto/create-product.dto';
 
 describe('ProductsController & CategoriesController', () => {
   let productsController: ProductsController;
@@ -51,7 +57,8 @@ describe('ProductsController & CategoriesController', () => {
     }).compile();
 
     productsController = module.get<ProductsController>(ProductsController);
-    categoriesController = module.get<CategoriesController>(CategoriesController);
+    categoriesController =
+      module.get<CategoriesController>(CategoriesController);
     service = module.get(ProductsService);
   });
 
@@ -73,7 +80,9 @@ describe('ProductsController & CategoriesController', () => {
 
     it('search with undefined query (fallback to empty string)', async () => {
       service.searchProducts.mockResolvedValue([mockProduct as any]);
-      expect(await productsController.search(undefined as any)).toEqual([mockProduct]);
+      expect(await productsController.search(undefined as any)).toEqual([
+        mockProduct,
+      ]);
       expect(service.searchProducts).toHaveBeenCalledWith('');
     });
 
@@ -83,7 +92,12 @@ describe('ProductsController & CategoriesController', () => {
     });
 
     it('create', async () => {
-      const dto: CreateProductDto = { name: 'Test', price: 10, stock: 100, categoryId: 1 };
+      const dto: CreateProductDto = {
+        name: 'Test',
+        price: 10,
+        stock: 100,
+        categoryId: 1,
+      };
       service.create.mockResolvedValue(mockProduct as any);
       expect(await productsController.create(dto)).toEqual(mockProduct);
     });

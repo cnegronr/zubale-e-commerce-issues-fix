@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
@@ -19,8 +24,21 @@ describe('OrdersController (e2e)', () => {
   let ordersService: OrdersService;
   let productsService: ProductsService;
 
-  const mockUser = { id: 1, name: 'User 1', email: 'user1@example.com', isActive: true, createdAt: new Date() };
-  const mockProduct = { id: 1, name: 'Product 1', stock: 10, price: 50, isAvailable: true, categoryId: 1 };
+  const mockUser = {
+    id: 1,
+    name: 'User 1',
+    email: 'user1@example.com',
+    isActive: true,
+    createdAt: new Date(),
+  };
+  const mockProduct = {
+    id: 1,
+    name: 'Product 1',
+    stock: 10,
+    price: 50,
+    isAvailable: true,
+    categoryId: 1,
+  };
 
   const mockOrder: any = {
     id: 1,
@@ -147,9 +165,7 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('GET /orders?userId=1 - should return orders by userId', () => {
-    return request(app.getHttpServer())
-      .get('/orders?userId=1')
-      .expect(200);
+    return request(app.getHttpServer()).get('/orders?userId=1').expect(200);
   });
 
   it('GET /orders/1 - should return order by id', () => {
@@ -162,9 +178,7 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('GET /orders/99 - should return 404 if order not found', () => {
-    return request(app.getHttpServer())
-      .get('/orders/99')
-      .expect(404);
+    return request(app.getHttpServer()).get('/orders/99').expect(404);
   });
 
   it('GET /orders/1/full - should return order with full details including user latestOrder summary without circular references', () => {
@@ -180,17 +194,15 @@ describe('OrdersController (e2e)', () => {
 
   it('GET /orders/0/full - should return 400 Bad Request for zero ID', async () => {
     const ordersService = app.get(OrdersService);
-    await expect(ordersService.getOrderWithFullDetails(0)).rejects.toThrow(BadRequestException);
+    await expect(ordersService.getOrderWithFullDetails(0)).rejects.toThrow(
+      BadRequestException,
+    );
 
-    return request(app.getHttpServer())
-      .get('/orders/0/full')
-      .expect(400);
+    return request(app.getHttpServer()).get('/orders/0/full').expect(400);
   });
 
   it('GET /orders/99/full - should return 404 when full details order not found', () => {
-    return request(app.getHttpServer())
-      .get('/orders/99/full')
-      .expect(404);
+    return request(app.getHttpServer()).get('/orders/99/full').expect(404);
   });
 
   it('POST /orders - should create an order with valid DTO', () => {
@@ -218,7 +230,9 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('POST /orders - should return 400 when product stock is insufficient', async () => {
-    jest.spyOn(productsService, 'findOne').mockResolvedValueOnce({ ...mockProduct, stock: 1 } as any);
+    jest
+      .spyOn(productsService, 'findOne')
+      .mockResolvedValueOnce({ ...mockProduct, stock: 1 } as any);
     await request(app.getHttpServer())
       .post('/orders')
       .send({ userId: 1, items: [{ productId: 1, quantity: 5 }] })
@@ -234,28 +248,26 @@ describe('OrdersController (e2e)', () => {
 
   it('POST /orders/1/pay - should process payment for order when random payment succeeds', () => {
     jest.spyOn(Math, 'random').mockReturnValue(0.5);
-    return request(app.getHttpServer())
-      .post('/orders/1/pay')
-      .expect(201);
+    return request(app.getHttpServer()).post('/orders/1/pay').expect(201);
   });
 
   it('POST /orders/1/pay - should return 400 when order is cancelled', async () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CANCELLED });
-    await request(app.getHttpServer())
-      .post('/orders/1/pay')
-      .expect(400);
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CANCELLED });
+    await request(app.getHttpServer()).post('/orders/1/pay').expect(400);
   });
 
   it('POST /orders/1/pay - should throw 503 Service Unavailable when payment retries exhaust', async () => {
     const spy = jest.spyOn(Math, 'random').mockReturnValue(0.05);
-    await request(app.getHttpServer())
-      .post('/orders/1/pay')
-      .expect(503);
+    await request(app.getHttpServer()).post('/orders/1/pay').expect(503);
     spy.mockRestore();
   });
 
   it('PATCH /orders/1/status - should update status from confirmed to shipped', () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
     return request(app.getHttpServer())
       .patch('/orders/1/status')
       .send({ status: OrderStatus.SHIPPED })
@@ -266,7 +278,9 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('PATCH /orders/99/status - should return 400 when orderId is invalid or non-existing', () => {
-    jest.spyOn(ordersService, 'findOne').mockRejectedValueOnce(new NotFoundException('Order #99 not found'));
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockRejectedValueOnce(new NotFoundException('Order #99 not found'));
     return request(app.getHttpServer())
       .patch('/orders/99/status')
       .send({ status: OrderStatus.SHIPPED })
@@ -275,16 +289,28 @@ describe('OrdersController (e2e)', () => {
 
   it('GET /orders/0 - should return 400 Bad Request for positive int pipe failure', async () => {
     await expect(ordersService.findOne(0)).rejects.toThrow(BadRequestException);
-    await expect(ordersService.findByUser(0)).rejects.toThrow(BadRequestException);
-    await expect(ordersService.create({ userId: 0, items: [{ productId: 1, quantity: 1 }] })).rejects.toThrow(BadRequestException);
-    await expect(ordersService.create({ userId: 1, items: [{ productId: 0, quantity: 1 }] })).rejects.toThrow('Products not found: #0');
-    return request(app.getHttpServer())
-      .get('/orders/0')
-      .expect(400);
+    await expect(ordersService.findByUser(0)).rejects.toThrow(
+      BadRequestException,
+    );
+    await expect(
+      ordersService.create({
+        userId: 0,
+        items: [{ productId: 1, quantity: 1 }],
+      }),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      ordersService.create({
+        userId: 1,
+        items: [{ productId: 0, quantity: 1 }],
+      }),
+    ).rejects.toThrow('Products not found: #0');
+    return request(app.getHttpServer()).get('/orders/0').expect(400);
   });
 
   it('PATCH /orders/1/status - should return 400 when status is invalid', () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
     return request(app.getHttpServer())
       .patch('/orders/1/status')
       .send({ status: 'INVALID' })
@@ -292,7 +318,9 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('PATCH /orders/1/status - should return 400 when attempting invalid transition to shipped', () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.PENDING });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.PENDING });
     return request(app.getHttpServer())
       .patch('/orders/1/status')
       .send({ status: OrderStatus.SHIPPED })
@@ -300,7 +328,9 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('PATCH /orders/1/status - should return 400 when attempting invalid transition to delivered', () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
     return request(app.getHttpServer())
       .patch('/orders/1/status')
       .send({ status: OrderStatus.DELIVERED })
@@ -308,7 +338,9 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('PATCH /orders/1/status - should return 200 idempotently when order is already in shipped or delivered status', async () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.SHIPPED });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.SHIPPED });
     await request(app.getHttpServer())
       .patch('/orders/1/status')
       .send({ status: OrderStatus.SHIPPED })
@@ -317,7 +349,9 @@ describe('OrdersController (e2e)', () => {
         expect(res.body.status).toBe(OrderStatus.SHIPPED);
       });
 
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.DELIVERED });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.DELIVERED });
     await request(app.getHttpServer())
       .patch('/orders/1/status')
       .send({ status: OrderStatus.DELIVERED })
@@ -328,17 +362,15 @@ describe('OrdersController (e2e)', () => {
   });
 
   it('POST /orders/1/cancel - should cancel pending order and return idempotently if cancelled again', async () => {
-    await request(app.getHttpServer())
-      .post('/orders/1/cancel')
-      .expect(201);
+    await request(app.getHttpServer()).post('/orders/1/cancel').expect(201);
 
-    await request(app.getHttpServer())
-      .post('/orders/1/cancel')
-      .expect(201);
+    await request(app.getHttpServer()).post('/orders/1/cancel').expect(201);
   });
 
   it('cancel validation - should throw BadRequestException if order is confirmed', async () => {
-    jest.spyOn(ordersService, 'findOne').mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
+    jest
+      .spyOn(ordersService, 'findOne')
+      .mockResolvedValueOnce({ ...mockOrder, status: OrderStatus.CONFIRMED });
     await expect(ordersService.cancel(1)).rejects.toThrow(BadRequestException);
   });
 });

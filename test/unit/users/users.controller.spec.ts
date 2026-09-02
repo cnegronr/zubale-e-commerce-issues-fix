@@ -61,7 +61,10 @@ describe('UsersController', () => {
 
   describe('create', () => {
     it('should create and return a new user', async () => {
-      const dto: CreateUserDto = { email: 'test@example.com', name: 'Test User' };
+      const dto: CreateUserDto = {
+        email: 'test@example.com',
+        name: 'Test User',
+      };
       service.create.mockResolvedValue(mockUser as any);
       const result = await controller.create(dto);
       expect(result).toEqual(mockUser);

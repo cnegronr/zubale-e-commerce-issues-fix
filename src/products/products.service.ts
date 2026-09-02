@@ -1,11 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, In } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Product } from './product.entity';
 import { Category } from './category.entity';
 import { CreateProductDto, CreateCategoryDto } from './dto/create-product.dto';
+
+export interface CategoryTreeNode {
+  id: number;
+  name: string;
+  parent?: CategoryTreeNode;
+  children: CategoryTreeNode[];
+}
 
 @Injectable()
 export class ProductsService {
@@ -24,9 +36,11 @@ export class ProductsService {
 
   async findOne(id: number): Promise<Product> {
     if (!id || id <= 0) {
-      throw new BadRequestException('Product ID must be a positive integer greater than 0');
+      throw new BadRequestException(
+        'Product ID must be a positive integer greater than 0',
+      );
     }
-    const product = await this.productsRepository.findOne({ 
+    const product = await this.productsRepository.findOne({
       where: { id },
       relations: ['category'],
     });
@@ -37,14 +51,21 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    if (createProductDto.categoryId !== undefined && createProductDto.categoryId !== null) {
+    if (
+      createProductDto.categoryId !== undefined &&
+      createProductDto.categoryId !== null
+    ) {
       if (createProductDto.categoryId <= 0) {
-        throw new BadRequestException(`Cannot create product because category #${createProductDto.categoryId} does not exist`);
+        throw new BadRequestException(
+          `Cannot create product because category #${createProductDto.categoryId} does not exist`,
+        );
       }
       try {
         await this.findCategory(createProductDto.categoryId);
-      } catch (err) {
-        throw new BadRequestException(`Cannot create product because category #${createProductDto.categoryId} does not exist`);
+      } catch {
+        throw new BadRequestException(
+          `Cannot create product because category #${createProductDto.categoryId} does not exist`,
+        );
       }
     }
     const product = this.productsRepository.create(createProductDto);
@@ -81,9 +102,12 @@ export class ProductsService {
       relations: ['category'],
     });
 
-    const results = products.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.description ? p.description.toLowerCase().includes(searchQuery.toLowerCase()) : false)
+    const results = products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.description
+          ? p.description.toLowerCase().includes(searchQuery.toLowerCase())
+          : false),
     );
 
     await this.cacheManager.set(cacheKey, results, 60000);
@@ -91,12 +115,16 @@ export class ProductsService {
   }
 
   async findAllCategories(): Promise<Category[]> {
-    return this.categoriesRepository.find({ relations: ['parent', 'children'] });
+    return this.categoriesRepository.find({
+      relations: ['parent', 'children'],
+    });
   }
 
   async findCategory(id: number): Promise<Category> {
     if (!id || id <= 0) {
-      throw new BadRequestException('Category ID must be a positive integer greater than 0');
+      throw new BadRequestException(
+        'Category ID must be a positive integer greater than 0',
+      );
     }
     const category = await this.categoriesRepository.findOne({
       where: { id },
@@ -111,25 +139,29 @@ export class ProductsService {
   async createCategory(dto: CreateCategoryDto): Promise<Category> {
     if (dto.parentId !== undefined && dto.parentId !== null) {
       if (dto.parentId <= 0) {
-        throw new BadRequestException(`Cannot create category because parent category #${dto.parentId} does not exist`);
+        throw new BadRequestException(
+          `Cannot create category because parent category #${dto.parentId} does not exist`,
+        );
       }
       try {
         await this.findCategory(dto.parentId);
-      } catch (err) {
-        throw new BadRequestException(`Cannot create category because parent category #${dto.parentId} does not exist`);
+      } catch {
+        throw new BadRequestException(
+          `Cannot create category because parent category #${dto.parentId} does not exist`,
+        );
       }
     }
     const category = this.categoriesRepository.create(dto);
     return this.categoriesRepository.save(category);
   }
 
-  async getCategoryTree(categoryId: number): Promise<any> {
+  async getCategoryTree(categoryId: number): Promise<CategoryTreeNode> {
     const category = await this.findCategory(categoryId);
     return this.buildCategoryTree(category);
   }
 
-  private buildCategoryTree(category: Category): any {
-    const tree: any = {
+  private buildCategoryTree(category: Category): CategoryTreeNode {
+    const tree: CategoryTreeNode = {
       id: category.id,
       name: category.name,
       children: [],
@@ -140,13 +172,19 @@ export class ProductsService {
     }
 
     if (category.children && category.children.length > 0) {
-      tree.children = category.children.map(child => this.buildCategoryTree(child));
+      tree.children = category.children.map((child) =>
+        this.buildCategoryTree(child),
+      );
     }
 
     return tree;
   }
 
-  async processProductBatch(productIds: number[]): Promise<{ success: boolean; processed: number; failedProductIds?: number[] }> {
+  async processProductBatch(productIds: number[]): Promise<{
+    success: boolean;
+    processed: number;
+    failedProductIds?: number[];
+  }> {
     let processed = 0;
     const failedProductIds: number[] = [];
     const productsToSave: Product[] = [];
@@ -162,7 +200,7 @@ export class ProductsService {
           product.updatedAt = new Date();
           productsToSave.push(product);
           processed++;
-        } catch (error) {
+        } catch {
           failedProductIds.push(id);
         }
       }
@@ -170,14 +208,15 @@ export class ProductsService {
       if (productsToSave.length > 0) {
         await this.productsRepository.save(productsToSave);
       }
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Batch processing failed');
     }
 
     return {
       success: true,
       processed,
-      failedProductIds: failedProductIds.length > 0 ? failedProductIds : undefined,
+      failedProductIds:
+        failedProductIds.length > 0 ? failedProductIds : undefined,
     };
   }
 }

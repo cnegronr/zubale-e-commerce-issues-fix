@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -21,7 +27,7 @@ export class UsersService {
     if (cached) {
       return cached;
     }
-    
+
     const users = await this.usersRepository.find();
     await this.cacheManager.set(cacheKey, users, 60000);
     return users;
@@ -29,7 +35,9 @@ export class UsersService {
 
   async findOne(id: number): Promise<User> {
     if (!id || id <= 0) {
-      throw new BadRequestException('User ID must be a positive integer greater than 0');
+      throw new BadRequestException(
+        'User ID must be a positive integer greater than 0',
+      );
     }
     const cacheKey = `user:${id}`;
     const cached = await this.cacheManager.get<User>(cacheKey);
@@ -41,7 +49,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
-    
+
     await this.cacheManager.set(cacheKey, user, 60000);
     return user;
   }
@@ -52,9 +60,12 @@ export class UsersService {
       const saved = await this.usersRepository.save(user);
       await this.cacheManager.del('users:all');
       return saved;
-    } catch (error: any) {
-      if (error?.code === '23505' || error?.message?.includes('duplicate key')) {
-        throw new ConflictException(`User with email "${createUserDto.email}" already exists`);
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string } | undefined;
+      if (err?.code === '23505' || err?.message?.includes('duplicate key')) {
+        throw new ConflictException(
+          `User with email "${createUserDto.email}" already exists`,
+        );
       }
       throw error;
     }

@@ -11,8 +11,20 @@ describe('Products Cache & Batch Contract Tests', () => {
   let productsRepository: any;
   let cacheMap: Map<string, any>;
 
-  const laptopProduct = { id: 1, name: 'Gaming Laptop', description: 'Powerful laptop', price: 1500, stock: 10 };
-  const phoneProduct = { id: 2, name: 'Smartphone', description: null, price: 800, stock: 20 };
+  const laptopProduct = {
+    id: 1,
+    name: 'Gaming Laptop',
+    description: 'Powerful laptop',
+    price: 1500,
+    stock: 10,
+  };
+  const phoneProduct = {
+    id: 2,
+    name: 'Smartphone',
+    description: null,
+    price: 800,
+    stock: 20,
+  };
 
   beforeEach(async () => {
     cacheMap = new Map<string, any>();
@@ -80,25 +92,35 @@ describe('Products Cache & Batch Contract Tests', () => {
 
   describe('API Contract: Batch Error Reporting Guarantee (processProductBatch)', () => {
     it('MUST return explicit error details/failed IDs when batch items fail', async () => {
-      jest.spyOn(productsService, 'findOne').mockImplementation(async (id: number) => {
-        if (id === 2) {
-          throw new NotFoundException('Product #2 not found');
-        }
-        return { ...laptopProduct, id, updatedAt: new Date() } as any;
-      });
+      jest
+        .spyOn(productsService, 'findOne')
+        .mockImplementation(async (id: number) => {
+          if (id === 2) {
+            throw new NotFoundException('Product #2 not found');
+          }
+          return { ...laptopProduct, id, updatedAt: new Date() } as any;
+        });
       productsRepository.save.mockImplementation(async (p: any) => p);
 
       const batchResult = await productsService.processProductBatch([1, 2, 3]);
 
       // Contract assertion: Batch result MUST include failed item details instead of hiding failures
-      expect((batchResult as any).failedItems ?? (batchResult as any).failedProductIds).toBeDefined();
-      expect((batchResult as any).failedProductIds ?? (batchResult as any).failedItems).toContain(2);
+      expect(
+        (batchResult as any).failedItems ??
+          (batchResult as any).failedProductIds,
+      ).toBeDefined();
+      expect(
+        (batchResult as any).failedProductIds ??
+          (batchResult as any).failedItems,
+      ).toContain(2);
     });
 
     it('returns undefined failedProductIds when all batch items succeed', async () => {
-      jest.spyOn(productsService, 'findOne').mockImplementation(async (id: number) => {
-        return { ...laptopProduct, id, updatedAt: new Date() } as any;
-      });
+      jest
+        .spyOn(productsService, 'findOne')
+        .mockImplementation(async (id: number) => {
+          return { ...laptopProduct, id, updatedAt: new Date() } as any;
+        });
       productsRepository.save.mockImplementation(async (p: any) => p);
 
       const batchResult = await productsService.processProductBatch([1, 3]);

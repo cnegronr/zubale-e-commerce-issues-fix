@@ -1,10 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, BadRequestException } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  BadRequestException,
+} from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as request from 'supertest';
 import { App } from 'supertest/types';
-import { ProductsController, CategoriesController } from '../../src/products/products.controller';
+import {
+  ProductsController,
+  CategoriesController,
+} from '../../src/products/products.controller';
 import { ProductsService } from '../../src/products/products.service';
 import { Product } from '../../src/products/product.entity';
 import { Category } from '../../src/products/category.entity';
@@ -151,9 +158,7 @@ describe('ProductsController (e2e)', () => {
         .expect(200);
 
       cacheManager.get.mockResolvedValueOnce(null);
-      await request(app.getHttpServer())
-        .get('/products/search')
-        .expect(200);
+      await request(app.getHttpServer()).get('/products/search').expect(200);
     });
 
     it('GET /products/1 - should return product by id', () => {
@@ -166,21 +171,25 @@ describe('ProductsController (e2e)', () => {
     });
 
     it('GET /products/0 - should return 400 Bad Request for positive int pipe failure', async () => {
-      await expect(productsService.findOne(0)).rejects.toThrow(BadRequestException);
-      await expect(productsService.findCategory(0)).rejects.toThrow(BadRequestException);
-      await expect(productsService.create({ name: 'Test', price: 100, categoryId: 0 })).rejects.toThrow(BadRequestException);
-      await expect(productsService.createCategory({ name: 'TestCat', parentId: 0 })).rejects.toThrow(BadRequestException);
+      await expect(productsService.findOne(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(productsService.findCategory(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(
+        productsService.create({ name: 'Test', price: 100, categoryId: 0 }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        productsService.createCategory({ name: 'TestCat', parentId: 0 }),
+      ).rejects.toThrow(BadRequestException);
       const batchRes = await productsService.processProductBatch([0, -1]);
       expect(batchRes.failedProductIds).toEqual([0, -1]);
-      return request(app.getHttpServer())
-        .get('/products/0')
-        .expect(400);
+      return request(app.getHttpServer()).get('/products/0').expect(400);
     });
 
     it('GET /products/99 - should return 404 if product not found', () => {
-      return request(app.getHttpServer())
-        .get('/products/99')
-        .expect(404);
+      return request(app.getHttpServer()).get('/products/99').expect(404);
     });
 
     it('POST /products - should create a product', () => {
@@ -232,9 +241,7 @@ describe('ProductsController (e2e)', () => {
     });
 
     it('DELETE /products/1 - should delete product', () => {
-      return request(app.getHttpServer())
-        .delete('/products/1')
-        .expect(200);
+      return request(app.getHttpServer()).delete('/products/1').expect(200);
     });
   });
 
@@ -258,9 +265,7 @@ describe('ProductsController (e2e)', () => {
     });
 
     it('GET /categories/99 - should return 404 when category not found', () => {
-      return request(app.getHttpServer())
-        .get('/categories/99')
-        .expect(404);
+      return request(app.getHttpServer()).get('/categories/99').expect(404);
     });
 
     it('GET /categories/1/tree - should return category tree', () => {

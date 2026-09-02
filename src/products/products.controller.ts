@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto, CreateCategoryDto } from './dto/create-product.dto';
 import { ParsePositiveIntPipe } from '../common/pipes/parse-positive-int.pipe';

@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ServiceUnavailableException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ServiceUnavailableException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -8,17 +14,38 @@ import { OrderItem } from './order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UsersService } from '../users/users.service';
 import { ProductsService } from '../products/products.service';
+import { User } from '../users/user.entity';
+import { Product } from '../products/product.entity';
+
+export interface EnrichedUser extends User {
+  latestOrder?: {
+    id: number;
+    status: OrderStatus;
+    total: number;
+    createdAt: Date;
+  };
+}
+
+export interface OrderWithFullDetails extends Omit<Order, 'user'> {
+  user?: EnrichedUser;
+}
 
 const paymentService = {
-  async processPayment(orderId: number, amount: number): Promise<{ success: boolean; transactionId: string }> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+  async processPayment(
+    orderId: number,
+    amount: number,
+  ): Promise<{ success: boolean; transactionId: string }> {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     if (Math.random() < 0.1) {
       throw new Error('Payment service unavailable');
     }
-    
-    return { success: true, transactionId: `TXN-${Date.now()}` };
-  }
+
+    return {
+      success: true,
+      transactionId: `TXN-${orderId}-${amount}-${Date.now()}`,
+    };
+  },
 };
 
 @Injectable()
@@ -37,14 +64,16 @@ export class OrdersService {
   ) {}
 
   async findAll(): Promise<Order[]> {
-    return this.ordersRepository.find({ 
+    return this.ordersRepository.find({
       relations: ['user', 'items', 'items.product'],
     });
   }
 
   async findOne(id: number): Promise<Order> {
     if (!id || id <= 0) {
-      throw new BadRequestException('Order ID must be a positive integer greater than 0');
+      throw new BadRequestException(
+        'Order ID must be a positive integer greater than 0',
+      );
     }
     const order = await this.ordersRepository.findOne({
       where: { id },
@@ -58,7 +87,9 @@ export class OrdersService {
 
   async findByUser(userId: number): Promise<Order[]> {
     if (!userId || userId <= 0) {
-      throw new BadRequestException('User ID must be a positive integer greater than 0');
+      throw new BadRequestException(
+        'User ID must be a positive integer greater than 0',
+      );
     }
     return this.ordersRepository.find({
       where: { userId },
@@ -75,10 +106,10 @@ export class OrdersService {
       throw new BadRequestException(`User #${createOrderDto.userId} not found`);
     }
 
-    let user: any;
+    let user: User;
     try {
       user = await this.usersService.findOne(createOrderDto.userId);
-    } catch (err) {
+    } catch {
       throw new BadRequestException(`User #${createOrderDto.userId} not found`);
     }
 
@@ -90,7 +121,7 @@ export class OrdersService {
 
     const missingProductIds: number[] = [];
     const insufficientStockItems: string[] = [];
-    const validatedItems: Array<{ product: any; quantity: number }> = [];
+    const validatedItems: Array<{ product: Product; quantity: number }> = [];
 
     for (const [productId, totalQuantity] of itemMap.entries()) {
       if (productId <= 0) {
@@ -100,21 +131,27 @@ export class OrdersService {
       try {
         const product = await this.productsService.findOne(productId);
         if (product.stock < totalQuantity) {
-          insufficientStockItems.push(`${product.name} (requested: ${totalQuantity}, available: ${product.stock})`);
+          insufficientStockItems.push(
+            `${product.name} (requested: ${totalQuantity}, available: ${product.stock})`,
+          );
         } else {
           validatedItems.push({ product, quantity: totalQuantity });
         }
-      } catch (err) {
+      } catch {
         missingProductIds.push(productId);
       }
     }
 
     if (missingProductIds.length > 0) {
-      throw new BadRequestException(`Products not found: #${missingProductIds.join(', #')}`);
+      throw new BadRequestException(
+        `Products not found: #${missingProductIds.join(', #')}`,
+      );
     }
 
     if (insufficientStockItems.length > 0) {
-      throw new BadRequestException(`Not enough stock for: ${insufficientStockItems.join(', ')}`);
+      throw new BadRequestException(
+        `Not enough stock for: ${insufficientStockItems.join(', ')}`,
+      );
     }
 
     const order = this.ordersRepository.create({
@@ -135,7 +172,10 @@ export class OrdersService {
 
       await this.orderItemsRepository.save(orderItem);
       total += product.price * quantity;
-      await this.productsService.updateStock(product.id, product.stock - quantity);
+      await this.productsService.updateStock(
+        product.id,
+        product.stock - quantity,
+      );
     }
 
     savedOrder.total = total;
@@ -148,8 +188,10 @@ export class OrdersService {
     let order: Order;
     try {
       order = await this.findOne(id);
-    } catch (err) {
-      throw new BadRequestException(`Order #${id} does not exist or orderId is invalid`);
+    } catch {
+      throw new BadRequestException(
+        `Order #${id} does not exist or orderId is invalid`,
+      );
     }
 
     if (status !== OrderStatus.SHIPPED && status !== OrderStatus.DELIVERED) {
@@ -162,46 +204,67 @@ export class OrdersService {
       return order;
     }
 
-    if (status === OrderStatus.SHIPPED && order.status !== OrderStatus.CONFIRMED) {
-      throw new BadRequestException('Only confirmed orders can be updated to shipped');
+    if (
+      status === OrderStatus.SHIPPED &&
+      order.status !== OrderStatus.CONFIRMED
+    ) {
+      throw new BadRequestException(
+        'Only confirmed orders can be updated to shipped',
+      );
     }
 
-    if (status === OrderStatus.DELIVERED && order.status !== OrderStatus.SHIPPED) {
-      throw new BadRequestException('Only shipped orders can be updated to delivered');
+    if (
+      status === OrderStatus.DELIVERED &&
+      order.status !== OrderStatus.SHIPPED
+    ) {
+      throw new BadRequestException(
+        'Only shipped orders can be updated to delivered',
+      );
     }
 
     order.status = status;
     return this.ordersRepository.save(order);
   }
 
-  async processPayment(orderId: number): Promise<{ success: boolean; transactionId: string }> {
+  async processPayment(
+    orderId: number,
+  ): Promise<{ success: boolean; transactionId: string }> {
     const order = await this.findOne(orderId);
     if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException(`Cannot process payment for an order with status "${order.status}"`);
+      throw new BadRequestException(
+        `Cannot process payment for an order with status "${order.status}"`,
+      );
     }
-    
-    let lastError: Error = new ServiceUnavailableException('Payment service unavailable');
+
+    let lastError: Error = new ServiceUnavailableException(
+      'Payment service unavailable',
+    );
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        const result = await paymentService.processPayment(orderId, Number(order.total));
-        
+        const result = await paymentService.processPayment(
+          orderId,
+          Number(order.total),
+        );
+
         if (result.success) {
           order.status = OrderStatus.CONFIRMED;
           await this.ordersRepository.save(order);
           return result;
         }
-      } catch (error: any) {
-        lastError = new ServiceUnavailableException(error.message);
-        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error: unknown) {
+        lastError = new ServiceUnavailableException(
+          (error as Error).message,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }
-    
+
     throw lastError;
   }
 
   async cancel(id: number): Promise<Order> {
     const order = await this.findOne(id);
-    
+
     if (order.status === OrderStatus.CANCELLED) {
       return order;
     }
@@ -209,33 +272,38 @@ export class OrdersService {
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Only pending orders can be cancelled');
     }
-    
+
     order.status = OrderStatus.CANCELLED;
     const savedOrder = await this.ordersRepository.save(order);
 
     for (const item of order.items) {
       const product = await this.productsService.findOne(item.productId);
-      await this.productsService.updateStock(product.id, product.stock + item.quantity);
+      await this.productsService.updateStock(
+        product.id,
+        product.stock + item.quantity,
+      );
     }
-    
+
     return savedOrder;
   }
 
-  async getOrderWithFullDetails(id: number): Promise<any> {
+  async getOrderWithFullDetails(id: number): Promise<OrderWithFullDetails> {
     if (!id || id <= 0) {
-      throw new BadRequestException(`ID parameter "${id}" must be a positive integer greater than 0`);
+      throw new BadRequestException(
+        `ID parameter "${id}" must be a positive integer greater than 0`,
+      );
     }
 
     const order = await this.ordersRepository.findOne({
       where: { id },
       relations: ['user', 'items', 'items.product', 'items.product.category'],
     });
-    
+
     if (!order) {
       throw new NotFoundException(`Order #${id} not found`);
     }
 
-    const enriched: any = { ...order };
+    const enriched: OrderWithFullDetails = { ...order };
     if (order.user) {
       enriched.user = {
         ...order.user,

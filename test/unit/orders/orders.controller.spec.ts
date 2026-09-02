@@ -73,15 +73,32 @@ describe('OrdersController', () => {
 
   describe('getFullDetails', () => {
     it('should return order with full details', async () => {
-      service.getOrderWithFullDetails.mockResolvedValue({ ...mockOrder, enriched: true });
-      expect(await controller.getFullDetails(1)).toEqual({ ...mockOrder, enriched: true });
+      const mockFullOrder: any = {
+        ...mockOrder,
+        user: {
+          id: 1,
+          name: 'User 1',
+          email: 'user1@example.com',
+          latestOrder: {
+            id: mockOrder.id,
+            status: mockOrder.status,
+            total: mockOrder.total,
+            createdAt: mockOrder.createdAt,
+          },
+        },
+      };
+      service.getOrderWithFullDetails.mockResolvedValue(mockFullOrder);
+      expect(await controller.getFullDetails(1)).toEqual(mockFullOrder);
       expect(service.getOrderWithFullDetails).toHaveBeenCalledWith(1);
     });
   });
 
   describe('create', () => {
     it('should create order', async () => {
-      const dto: CreateOrderDto = { userId: 1, items: [{ productId: 1, quantity: 2 }] };
+      const dto: CreateOrderDto = {
+        userId: 1,
+        items: [{ productId: 1, quantity: 2 }],
+      };
       service.create.mockResolvedValue(mockOrder as any);
       expect(await controller.create(dto)).toEqual(mockOrder);
       expect(service.create).toHaveBeenCalledWith(dto);
@@ -99,19 +116,31 @@ describe('OrdersController', () => {
 
   describe('updateStatus', () => {
     it('should update order status', async () => {
-      service.updateStatus.mockResolvedValue({ ...mockOrder, status: OrderStatus.CONFIRMED } as any);
+      service.updateStatus.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.CONFIRMED,
+      } as any);
       expect(await controller.updateStatus(1, OrderStatus.CONFIRMED)).toEqual({
         ...mockOrder,
         status: OrderStatus.CONFIRMED,
       });
-      expect(service.updateStatus).toHaveBeenCalledWith(1, OrderStatus.CONFIRMED);
+      expect(service.updateStatus).toHaveBeenCalledWith(
+        1,
+        OrderStatus.CONFIRMED,
+      );
     });
   });
 
   describe('cancel', () => {
     it('should cancel order', async () => {
-      service.cancel.mockResolvedValue({ ...mockOrder, status: OrderStatus.CANCELLED } as any);
-      expect(await controller.cancel(1)).toEqual({ ...mockOrder, status: OrderStatus.CANCELLED });
+      service.cancel.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.CANCELLED,
+      } as any);
+      expect(await controller.cancel(1)).toEqual({
+        ...mockOrder,
+        status: OrderStatus.CANCELLED,
+      });
       expect(service.cancel).toHaveBeenCalledWith(1);
     });
   });

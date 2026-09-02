@@ -54,7 +54,8 @@ describe('Orders Contract & Integration Tests', () => {
     const mockOrdersRepo = {
       find: jest.fn().mockResolvedValue([mockOrder]),
       findOne: jest.fn().mockImplementation(({ where }) => {
-        if (where && where.id === 1) return Promise.resolve({ ...mockOrder, status: OrderStatus.PENDING });
+        if (where && where.id === 1)
+          return Promise.resolve({ ...mockOrder, status: OrderStatus.PENDING });
         return Promise.resolve(null);
       }),
       create: jest.fn((dto) => ({ ...dto, id: 1 })),
@@ -115,8 +116,8 @@ describe('Orders Contract & Integration Tests', () => {
 
     ordersService = module.get<OrdersService>(OrdersService);
     ordersController = module.get<OrdersController>(OrdersController);
-    productsService = module.get(ProductsService) as any;
-    usersService = module.get(UsersService) as any;
+    productsService = module.get(ProductsService);
+    usersService = module.get(UsersService);
     ordersRepository = module.get(getRepositoryToken(Order));
   });
 
@@ -130,11 +131,15 @@ describe('Orders Contract & Integration Tests', () => {
     });
 
     it('throws BadRequestException for non-positive order id', async () => {
-      await expect(ordersService.getOrderWithFullDetails(0)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.getOrderWithFullDetails(0)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws NotFoundException when order full details is not found', async () => {
-      await expect(ordersService.getOrderWithFullDetails(99)).rejects.toThrow(NotFoundException);
+      await expect(ordersService.getOrderWithFullDetails(99)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -159,20 +164,40 @@ describe('Orders Contract & Integration Tests', () => {
     });
 
     it('throws BadRequestException when order creation has invalid user', async () => {
-      await expect(ordersService.create({ userId: 99, items: [{ productId: 1, quantity: 1 }] })).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.create({
+          userId: 99,
+          items: [{ productId: 1, quantity: 1 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when order creation has non-existing product IDs', async () => {
-      await expect(ordersService.create({ userId: 1, items: [{ productId: 99, quantity: 1 }] })).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.create({
+          userId: 1,
+          items: [{ productId: 99, quantity: 1 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when order creation has insufficient stock', async () => {
-      productsService.findOne.mockResolvedValueOnce({ ...mockProduct, stock: 1 } as any);
-      await expect(ordersService.create({ userId: 1, items: [{ productId: 1, quantity: 5 }] })).rejects.toThrow(BadRequestException);
+      productsService.findOne.mockResolvedValueOnce({
+        ...mockProduct,
+        stock: 1,
+      } as any);
+      await expect(
+        ordersService.create({
+          userId: 1,
+          items: [{ productId: 1, quantity: 5 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when order creation has empty items', async () => {
-      await expect(ordersService.create({ userId: 1, items: [] })).rejects.toThrow(BadRequestException);
+      await expect(
+        ordersService.create({ userId: 1, items: [] }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -186,26 +211,40 @@ describe('Orders Contract & Integration Tests', () => {
     it('findOne and getFullDetails endpoints', async () => {
       expect(await ordersController.findOne(1)).toEqual(mockOrder);
       expect(await ordersController.getFullDetails(1)).toBeDefined();
-      await expect(ordersService.findOne(99)).rejects.toThrow(NotFoundException);
+      await expect(ordersService.findOne(99)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('create, updateStatus, processPayment, cancel endpoints', async () => {
-      expect(await ordersController.create({ userId: 1, items: [{ productId: 1, quantity: 2 }] })).toBeDefined();
-      
+      expect(
+        await ordersController.create({
+          userId: 1,
+          items: [{ productId: 1, quantity: 2 }],
+        }),
+      ).toBeDefined();
+
       const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
       ordersRepository.findOne.mockResolvedValue(confirmedOrder);
-      expect(await ordersController.updateStatus(1, OrderStatus.SHIPPED)).toBeDefined();
+      expect(
+        await ordersController.updateStatus(1, OrderStatus.SHIPPED),
+      ).toBeDefined();
 
       const shippedOrder = { ...mockOrder, status: OrderStatus.SHIPPED };
       ordersRepository.findOne.mockResolvedValue(shippedOrder);
-      expect(await ordersController.updateStatus(1, OrderStatus.DELIVERED)).toBeDefined();
-      
+      expect(
+        await ordersController.updateStatus(1, OrderStatus.DELIVERED),
+      ).toBeDefined();
+
       const pendingOrder = { ...mockOrder, status: OrderStatus.PENDING };
       ordersRepository.findOne.mockResolvedValue(pendingOrder);
       jest.spyOn(Math, 'random').mockReturnValue(0.5);
       expect(await ordersController.processPayment(1)).toBeDefined();
 
-      const pendingOrderForCancel = { ...mockOrder, status: OrderStatus.PENDING };
+      const pendingOrderForCancel = {
+        ...mockOrder,
+        status: OrderStatus.PENDING,
+      };
       ordersRepository.findOne.mockResolvedValueOnce(pendingOrderForCancel);
       expect(await ordersController.cancel(1)).toBeDefined();
 
@@ -213,9 +252,14 @@ describe('Orders Contract & Integration Tests', () => {
       ordersRepository.findOne.mockResolvedValueOnce(cancelledOrder);
       expect(await ordersService.cancel(1)).toEqual(cancelledOrder);
 
-      const confirmedOrderForCancel = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      const confirmedOrderForCancel = {
+        ...mockOrder,
+        status: OrderStatus.CONFIRMED,
+      };
       ordersRepository.findOne.mockResolvedValueOnce(confirmedOrderForCancel);
-      await expect(ordersService.cancel(1)).rejects.toThrow(BadRequestException);
+      await expect(ordersService.cancel(1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

@@ -87,7 +87,9 @@ describe('ProductsService', () => {
       productsRepository.find.mockResolvedValue([mockProduct]);
       const result = await service.findAll();
       expect(result).toEqual([mockProduct]);
-      expect(productsRepository.find).toHaveBeenCalledWith({ relations: ['category'] });
+      expect(productsRepository.find).toHaveBeenCalledWith({
+        relations: ['category'],
+      });
     });
   });
 
@@ -129,14 +131,20 @@ describe('ProductsService', () => {
 
     it('should throw BadRequestException if categoryId does not exist', async () => {
       const dto = { name: 'Laptop', price: 1500, stock: 10, categoryId: 99 };
-      jest.spyOn(service, 'findCategory').mockRejectedValue(new NotFoundException('Category #99 not found'));
+      jest
+        .spyOn(service, 'findCategory')
+        .mockRejectedValue(new NotFoundException('Category #99 not found'));
 
-      await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException if categoryId is 0 or negative', async () => {
       const dto = { name: 'Laptop', price: 1500, stock: 10, categoryId: 0 };
-      await expect(service.create(dto as any)).rejects.toThrow(BadRequestException);
+      await expect(service.create(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -151,7 +159,9 @@ describe('ProductsService', () => {
     });
 
     it('should throw BadRequestException when quantity is negative', async () => {
-      await expect(service.updateStock(1, -5)).rejects.toThrow(BadRequestException);
+      await expect(service.updateStock(1, -5)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -178,12 +188,24 @@ describe('ProductsService', () => {
     it('should search products in DB with ILike and cache the result', async () => {
       cacheManager.get.mockResolvedValue(null);
       const productWithDesc = { ...mockProduct, description: 'Gaming Laptop' };
-      const productNoDesc = { ...mockProduct, id: 2, name: 'Mouse', description: null };
-      productsRepository.find.mockResolvedValue([productWithDesc, productNoDesc]);
+      const productNoDesc = {
+        ...mockProduct,
+        id: 2,
+        name: 'Mouse',
+        description: null,
+      };
+      productsRepository.find.mockResolvedValue([
+        productWithDesc,
+        productNoDesc,
+      ]);
 
       const result = await service.searchProducts('gaming');
       expect(result).toEqual([productWithDesc]);
-      expect(cacheManager.set).toHaveBeenCalledWith('product-search:gaming', [productWithDesc], 60000);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        'product-search:gaming',
+        [productWithDesc],
+        60000,
+      );
     });
 
     it('should fallback to empty string search when query is undefined', async () => {
@@ -192,7 +214,11 @@ describe('ProductsService', () => {
 
       const result = await service.searchProducts(undefined as any);
       expect(result).toEqual([mockProduct]);
-      expect(cacheManager.set).toHaveBeenCalledWith('product-search:', [mockProduct], 60000);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        'product-search:',
+        [mockProduct],
+        60000,
+      );
     });
   });
 
@@ -201,7 +227,9 @@ describe('ProductsService', () => {
       categoriesRepository.find.mockResolvedValue([mockCategory]);
       const result = await service.findAllCategories();
       expect(result).toEqual([mockCategory]);
-      expect(categoriesRepository.find).toHaveBeenCalledWith({ relations: ['parent', 'children'] });
+      expect(categoriesRepository.find).toHaveBeenCalledWith({
+        relations: ['parent', 'children'],
+      });
     });
   });
 
@@ -217,8 +245,12 @@ describe('ProductsService', () => {
     });
 
     it('should throw BadRequestException if category id is 0 or negative', async () => {
-      await expect(service.findCategory(0)).rejects.toThrow(BadRequestException);
-      await expect(service.findCategory(-1)).rejects.toThrow(BadRequestException);
+      await expect(service.findCategory(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.findCategory(-1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw NotFoundException if category is not found', async () => {
@@ -243,20 +275,38 @@ describe('ProductsService', () => {
 
     it('should throw BadRequestException if parentId does not exist (e.g. parentId = 0)', async () => {
       const dto = { name: 'Laptops', parentId: 0 };
-      await expect(service.createCategory(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.createCategory(dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException if parentId is positive but category does not exist in DB', async () => {
       const dto = { name: 'Laptops', parentId: 99 };
-      jest.spyOn(service, 'findCategory').mockRejectedValueOnce(new NotFoundException('Category #99 not found'));
-      await expect(service.createCategory(dto)).rejects.toThrow(BadRequestException);
+      jest
+        .spyOn(service, 'findCategory')
+        .mockRejectedValueOnce(new NotFoundException('Category #99 not found'));
+      await expect(service.createCategory(dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('getCategoryTree', () => {
     it('should build category tree including parent and children', async () => {
-      const parentCat: any = { id: 10, name: 'Parent', parentId: null, parent: null, children: [] };
-      const childCat: any = { id: 2, name: 'Child', parentId: null, parent: null, children: [] };
+      const parentCat: any = {
+        id: 10,
+        name: 'Parent',
+        parentId: null,
+        parent: null,
+        children: [],
+      };
+      const childCat: any = {
+        id: 2,
+        name: 'Child',
+        parentId: null,
+        parent: null,
+        children: [],
+      };
       const rootCat: any = {
         id: 1,
         name: 'Root',
@@ -269,7 +319,7 @@ describe('ProductsService', () => {
 
       const tree = await service.getCategoryTree(1);
       expect(tree.id).toBe(1);
-      expect(tree.parent.id).toBe(10);
+      expect(tree.parent?.id).toBe(10);
       expect(tree.children.length).toBe(1);
       expect(tree.children[0].id).toBe(2);
     });
@@ -281,23 +331,39 @@ describe('ProductsService', () => {
       productsRepository.save.mockResolvedValue([mockProduct]);
 
       const result = await service.processProductBatch([1, 2]);
-      expect(result).toEqual({ success: true, processed: 2, failedProductIds: undefined });
+      expect(result).toEqual({
+        success: true,
+        processed: 2,
+        failedProductIds: undefined,
+      });
     });
 
     it('should handle errors for individual items in batch and report failed IDs', async () => {
-      jest.spyOn(service, 'findOne').mockRejectedValueOnce(new NotFoundException('Product #1 not found'));
+      jest
+        .spyOn(service, 'findOne')
+        .mockRejectedValueOnce(new NotFoundException('Product #1 not found'));
 
       const result = await service.processProductBatch([1]);
-      expect(result).toEqual({ success: true, processed: 0, failedProductIds: [1] });
+      expect(result).toEqual({
+        success: true,
+        processed: 0,
+        failedProductIds: [1],
+      });
     });
 
     it('should fail-fast for invalid product IDs <= 0 in batch and report failed IDs without querying DB', async () => {
       const result = await service.processProductBatch([0, -1]);
-      expect(result).toEqual({ success: true, processed: 0, failedProductIds: [0, -1] });
+      expect(result).toEqual({
+        success: true,
+        processed: 0,
+        failedProductIds: [0, -1],
+      });
     });
 
     it('should throw BadRequestException if outer processing fails or invalid payload is passed', async () => {
-      await expect(service.processProductBatch(null as any)).rejects.toThrow(BadRequestException);
+      await expect(service.processProductBatch(null as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

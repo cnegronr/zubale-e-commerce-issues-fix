@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { UsersService } from '../../../src/users/users.service';
 import { User } from '../../../src/users/user.entity';
 
@@ -73,7 +77,11 @@ describe('UsersService', () => {
       const result = await service.findAll();
       expect(result).toEqual([mockUser]);
       expect(repository.find).toHaveBeenCalled();
-      expect(cacheManager.set).toHaveBeenCalledWith('users:all', [mockUser], 60000);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        'users:all',
+        [mockUser],
+        60000,
+      );
     });
   });
 

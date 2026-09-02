@@ -32,7 +32,9 @@ describe('AppController (e2e)', () => {
   });
 
   it('should test ThrottlerExceptionFilter formatting', () => {
-    const { ThrottlerExceptionFilter } = require('../../src/common/filters/throttler-exception.filter');
+    const {
+      ThrottlerExceptionFilter,
+    } = require('../../src/common/filters/throttler-exception.filter');
     const filter = new ThrottlerExceptionFilter();
     const mockJson = jest.fn();
     const mockStatus = jest.fn().mockReturnValue({ json: mockJson });
