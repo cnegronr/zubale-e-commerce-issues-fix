@@ -13,6 +13,8 @@
 3. [Categoría 3: Nociones Avanzadas de Arquitectura y Senior Product Engineering](#3-categoría-3-nociones-avanzadas-de-arquitectura-y-senior-product-engineering)
 4. [Categoría 4: Escenarios de Alta Concurrencia, Sistemas Distribuidos y Observabilidad](#4-categoría-4-escenarios-de-alta-concurrencia-sistemas-distribuidos-y-observabilidad)
 5. [Categoría 5: Resiliencia, Microservicios, Docker, AWS CDK y Kubernetes (K8s)](#5-categoría-5-resiliencia-microservicios-docker-aws-cdk-y-kubernetes-k8s)
+6. [Categoría 6: Mejoras Futuras Aplicadas (Protección en Capa de Aplicación, Resiliencia y Robustez de Tipos)](#6-categoría-6-mejoras-futuras-aplicadas-protección-en-capa-de-aplicación-resiliencia-y-robustez-de-tipos)
+7. [Conclusión](#7-conclusión)
 
 ---
 
@@ -639,6 +641,144 @@ spec:
 
 ---
 
-## 6. Conclusión
+## 6. Categoría 6: Mejoras Futuras Aplicadas (Protección en Capa de Aplicación, Resiliencia y Robustez de Tipos)
 
-Esta guía completa consolida los fundamentos teóricos, la resolución práctica de fallas de backend, patrones de diseño de sistemas distribuidos y las mejores prácticas de infraestructura moderna en Kubernetes y la nube. Prepara al candidato para responder con solidez a cualquier nivel de entrevista técnica como **Senior Product Engineer**.
+### ❓ Pregunta 6.1: ¿Cómo implementaste las mejoras futuras de protección en la capa de aplicación (Rate Limiting con @nestjs/throttler, Circuit Breaker en pagos, filtro centralizado HTTP 429 y tipado estricto en TypeScript)?
+
+* **Respuesta del Candidato**:
+  Para blindar las reglas de negocio y prevenir abusos volumétricos o fallas en cascada antes de delegar en defensas perimetrales de infraestructura, implementé un paquete integral de mejoras en la **Capa de Aplicación de NestJS**:
+
+  1. **Instalación e Integración de `@nestjs/throttler`**:
+     Configuré `ThrottlerModule.forRoot` en `AppModule` con cuotas base globales (`limit: 100`, `ttl: 60000`) y registré el `ThrottlerGuard` a nivel de aplicación con el token `APP_GUARD`. Para proteger los endpoints más sensibles contra abusos y ataques de fuerza bruta, apliqué el estándar de **Tiered Rate Limiting** con el decorador `@Throttle()`:
+     - `POST /orders`: Cuota limitada a 20 peticiones por minuto.
+     - `POST /orders/:id/pay`: Cuota estricta de 10 peticiones por minuto para prevenir ataques de *card testing* y cobros redundantes.
+
+  2. **Implementación del Patrón Circuit Breaker en Pagos**:
+     Envolví la lógica de llamadas a pasarelas de pago externas en un disyuntor (*Circuit Breaker*). Cuando se registran fallos consecutivos o la tasa de error supera el umbral, el circuito pasa al estado **Open**, rechazando las peticiones de inmediato en **< 1 ms** con una excepción `ServiceUnavailableException` (HTTP `503 Service Unavailable`). Esto evita que el Event Loop y los sockets de red queden colgados reintentando llamadas a un servicio externo caído. Al transcurrir el periodo de enfriamiento, entra en **Half-Open** para probar si el servicio se recuperó.
+
+  3. **Manejo Centralizado de Excepciones HTTP (`HTTP 429 Too Many Requests`)**:
+     Creé un `ThrottlerExceptionFilter` dedicado anotado con `@Catch(ThrottlerException)` y registrado globalmente en `AppModule` mediante el token `APP_FILTER`. Transforma las violaciones de tasa en una respuesta JSON estructurada y estándar (RFC 7807) e inyecta la cabecera estándar `Retry-After: 60`, orientando al cliente sobre cuándo puede reanudar el envío de peticiones.
+
+  4. **Modo Estricto de TypeScript (`strict: true`) y Erradicación Total de `any`**:
+     - Habilité `"strict": true`, `"noImplicitAny": true`, `"strictNullChecks": true`, `"strictBindCallApply": true` y `"noFallthroughCasesInSwitch": true` en `tsconfig.json`.
+     - Reemplacé todas las ocurrencias de `: any`, `<any>` y `as any` en `src/` por interfaces explícitas de dominio: `CategoryTreeNode` para la jerarquía de categorías, y `OrderWithFullDetails` junto con `EnrichedUser` para el endpoint de orden completa.
+     - Migré todos los bloques de captura de errores de `catch (error: any)` a `catch (error: unknown)` con guardas de tipo seguras en tiempo de ejecución.
+     - Activé la regla estricta de ESLint `'@typescript-eslint/no-explicit-any': 'error'` para todo el directorio `src/**/*.ts`.
+
+* **Escenario de Entrevista**:
+  > *Entrevistador*: "¿Por qué decidiste aplicar Rate Limiting en la capa de aplicación de NestJS en lugar de delegarlo exclusivamente a un WAF perimetral como Cloudflare o AWS WAF?"
+  >
+  > *Candidato*: "Sigue el principio de **Defensa en Profundidad (Defense-in-Depth)**. El WAF perimetral detiene ataques volumétricos masivos a nivel de red (Capas 3 y 4) y bots basados en IP global. Sin embargo, la capa de aplicación en NestJS es la única que tiene el contexto de negocio (Capa 7) para aplicar cuotas semánticas por usuario autenticado, API Key o endpoint específico (como limitar pagos a 10 req/min mientras se permite consultar productos a 100 req/min). Ambas capas son complementarias y no redundantes: la infraestructura filtra el tráfico malicioso masivo y la aplicación protege las reglas de negocio y los costos de pasarelas de pago."
+
+#### 📚 Glosario de Conceptos:
+- **Tiered Rate Limiting**: Estrategia recomendada por OWASP (API4:2023) que asigna cuotas de consumo diferenciadas según el costo computacional y la sensibilidad financiera de cada endpoint.
+- **Circuit Breaker (Disyuntor de Resiliencia)**: Patrón de estabilidad que monitoriza fallos en integraciones externas. Posee 3 estados:
+  - *Closed*: Operación normal, las peticiones pasan al servicio externo.
+  - *Open*: Tras superar el umbral de fallos, corta inmediatamente el tráfico devolviendo HTTP 503 sin llamar a la red.
+  - *Half-Open*: Prueba un número limitado de peticiones para verificar si el servicio externo se recuperó.
+- **HTTP 429 Too Many Requests & Header `Retry-After`**: Código de estado HTTP estándar emitido cuando un cliente supera su cuota permitida. El encabezado `Retry-After` le indica en segundos el tiempo que debe esperar antes de reintentar.
+- **TypeScript Strict Mode**: Conjunto de verificaciones estrictas del compilador (`noImplicitAny`, `strictNullChecks`, etc.) que obligan a tipar formalmente cada parámetro, retorno y manejo de `null`/`undefined`.
+- **Type Narrowing & `unknown`**: Técnica segura de TypeScript donde variables de tipo indeterminado (`unknown`) solo pueden ser manipuladas después de comprobar su tipo en tiempo de ejecución mediante `instanceof`, `typeof` o guardas de tipo personalizadas.
+
+#### 💻 Ejemplos de Implementación:
+
+##### 1. Configuración de `ThrottlerModule`, `APP_GUARD` y `APP_FILTER` (`src/app.module.ts`):
+```typescript
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
+import { ThrottlerExceptionFilter } from './common/filters/throttler-exception.filter';
+
+@Module({
+  imports: [
+    // Cuota global por defecto: 100 peticiones cada 60 segundos
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
+    // ...demás módulos
+  ],
+  providers: [
+    AppService,
+    // Guard global de Throttling
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    // Filtro centralizado para HTTP 429
+    {
+      provide: APP_FILTER,
+      useClass: ThrottlerExceptionFilter,
+    },
+  ],
+})
+export class AppModule {}
+```
+
+##### 2. Filtro Centralizado de Excepciones HTTP 429 (`src/common/filters/throttler-exception.filter.ts`):
+```typescript
+import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
+import { Response } from 'express';
+
+@Catch(ThrottlerException)
+export class ThrottlerExceptionFilter implements ExceptionFilter {
+  catch(exception: ThrottlerException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+
+    response.header('Retry-After', '60');
+    response.status(HttpStatus.TOO_MANY_REQUESTS).json({
+      statusCode: HttpStatus.TOO_MANY_REQUESTS,
+      error: 'Too Many Requests',
+      message: exception.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+```
+
+##### 3. Aplicación Granular del Decorador `@Throttle` en Endpoints Críticos (`src/orders/orders.controller.ts`):
+```typescript
+@Controller('orders')
+export class OrdersController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  @Post()
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // Máximo 20 órdenes por minuto
+  create(@Body() createOrderDto: CreateOrderDto) {
+    return this.ordersService.create(createOrderDto);
+  }
+
+  @Post(':id/pay')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Máximo 10 intentos de pago por minuto
+  processPayment(@Param('id', ParsePositiveIntPipe) id: number) {
+    return this.ordersService.processPayment(id);
+  }
+}
+```
+
+##### 4. Configuración Estricta de Compilación (`tsconfig.json`):
+```json
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2023",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": false,
+    "forceConsistentCasingInFileNames": true,
+    "strictBindCallApply": true,
+    "noFallthroughCasesInSwitch": true
+  }
+}
+```
+
+---
+
+## 7. Conclusión
+
+Esta guía completa consolida los fundamentos teóricos, la resolución práctica de fallas de backend, patrones de diseño de sistemas distribuidos, resiliencia con Rate Limiting y Circuit Breaker, tipado estricto en TypeScript y las mejores prácticas de infraestructura moderna en Kubernetes y la nube. Prepara al candidato para responder con solidez a cualquier nivel de entrevista técnica como **Senior Product Engineer**.
