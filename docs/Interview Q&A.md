@@ -13,7 +13,7 @@
 3. [Categoría 3: Nociones Avanzadas de Arquitectura y Senior Product Engineering](#3-categoría-3-nociones-avanzadas-de-arquitectura-y-senior-product-engineering)
 4. [Categoría 4: Escenarios de Alta Concurrencia, Sistemas Distribuidos y Observabilidad](#4-categoría-4-escenarios-de-alta-concurrencia-sistemas-distribuidos-y-observabilidad)
 5. [Categoría 5: Resiliencia, Microservicios, Docker, AWS CDK y Kubernetes (K8s)](#5-categoría-5-resiliencia-microservicios-docker-aws-cdk-y-kubernetes-k8s)
-6. [Categoría 6: Mejoras Futuras Aplicadas (Protección en Capa de Aplicación, Resiliencia y Robustez de Tipos)](#6-categoría-6-mejoras-futuras-aplicadas-protección-en-capa-de-aplicación-resiliencia-y-robustez-de-tipos)
+6. [Categoría 6: Mejoras Futuras Aplicadas (Protección en Capa de Aplicación, Resiliencia, Robustez de Tipos y Portabilidad SQL ANSI)](#6-categoría-6-mejoras-futuras-aplicadas-protección-en-capa-de-aplicación-resiliencia-robustez-de-tipos-y-portabilidad-sql-ansi)
 7. [Conclusión](#7-conclusión)
 
 ---
@@ -675,7 +675,7 @@ spec:
 
 ---
 
-## 6. Categoría 6: Mejoras Futuras Aplicadas (Protección en Capa de Aplicación, Resiliencia y Robustez de Tipos)
+## 6. Categoría 6: Mejoras Futuras Aplicadas (Protección en Capa de Aplicación, Resiliencia, Robustez de Tipos y Portabilidad SQL ANSI)
 
 ### ❓ Pregunta 6.1: ¿Cómo implementaste las mejoras futuras de protección en la capa de aplicación (Rate Limiting con @nestjs/throttler, Circuit Breaker en pagos, filtro centralizado HTTP 429 y tipado estricto en TypeScript)?
 
@@ -813,6 +813,67 @@ export class OrdersController {
 
 ---
 
+### ❓ Pregunta 6.2: ¿Las consultas nativas SQL `ILIKE` son ANSI compliant o limitan la capacidad de la aplicación de cambiar el motor de base de datos sin tener que refactorizar código? ¿Cómo diseñarías una solución 100% portable y de alto rendimiento?
+
+* **Respuesta del Candidato**:
+  **NO son ANSI Compliant y SÍ limitan la capacidad de cambiar de motor de base de datos sin refactorizar código.**
+  
+  `ILIKE` (*Case-Insensitive LIKE*) es una **extensión propietaria de PostgreSQL** (y de motores basados en su dialecto como CockroachDB y Redshift). El estándar internacional **ANSI/ISO SQL (ISO/IEC 9075)** define únicamente el operador `LIKE` para coincidencia de patrones.
+
+* **Impacto ante Migración de Base de Datos**:
+  Si la empresa decide migrar la base de datos relacional de PostgreSQL a MySQL, MariaDB, Oracle o Microsoft SQL Server, cualquier consulta que utilice `ILIKE` generará de inmediato un **error fatal de sintaxis SQL**, rompiendo los endpoints de la API:
+  - **MySQL / MariaDB**: Error de sintaxis fatal `SQL syntax error near 'ILIKE'`.
+  - **Microsoft SQL Server (T-SQL)**: Error de sintaxis fatal `Incorrect syntax near 'ILIKE'`.
+  - **Oracle Database**: Error ORA-00920 `invalid relational operator`.
+  - **SQLite**: Error operacional `near "ILIKE": syntax error`.
+
+* **Solución Canónica 100% ANSI Compliant y Portable**:
+  Para que la aplicación sea verdaderamente agnóstica del motor de base de datos, se debe estandarizar la comparación convirtiendo ambos lados a minúsculas mediante la función estándar SQL-92 `LOWER()`:
+  $$\text{LOWER}(\text{columna}) \quad \text{LIKE} \quad \text{LOWER}(\text{patrón})$$
+  Esta sintaxis está soportada de manera universal por todos los motores relacionales sin alterar el código de TypeScript.
+
+* **Escenario de Entrevista**:
+  > *Entrevistador*: "Tanto `ILIKE '%query%'` como `LOWER(column) LIKE '%query%'` sufren de *Full Table Scan* en tablas con millones de registros por el comodín inicial (`%...`). ¿Cómo optimizarías el rendimiento en producción?"
+  >
+  > *Candidato*: "Abordaría la optimización en tres capas complementarias:
+  > 1. **Capa en Memoria (Caché Dinámica en Redis)**: Como implementamos en este challenge, cacheamos las búsquedas con llaves como `product-search:${query}` y TTL de 60s, respondiendo en **0 ms** ante búsquedas concurrentes y repetitivas.
+  > 2. **Capa de Base de Datos Relacional**: En PostgreSQL, utilizamos la extensión `pg_trgm` con índices GIN (`gin_trgm_ops`) o índices funcionales sobre `LOWER(name)`, permitiendo búsquedas de subcadenas eficientes mediante trigramas sin escanear toda la tabla.
+  > 3. **Capa Especializada (Full-Text Search)**: Para catálogos masivos de e-commerce con millones de productos, desacoplamos las consultas de texto libre hacia un motor dedicado como **Elasticsearch, OpenSearch o Meilisearch**, preservando la base de datos relacional estrictamente para transacciones ACID de órdenes y pagos."
+
+#### 📚 Glosario de Conceptos:
+- **ANSI SQL Compliance**: Grado de conformidad de un motor de base de datos o consulta con las normas oficiales estandarizadas por ANSI e ISO (ISO/IEC 9075). El código SQL ANSI permite portabilidad directa entre diferentes proveedores de bases de datos.
+- **Full Table Scan (Escaneo Secuencial)**: Lectura exhaustiva de cada fila de una tabla en disco cuando la consulta no puede beneficiarse de un índice B-Tree (como ocurre con patrones que inician con comodín `%term%`).
+- **Trigram Indexes (`pg_trgm`)**: Extensión de PostgreSQL que descompone cadenas de texto en fragmentos de tres caracteres consecutivos (*trigramas*), permitiendo indexar búsquedas con comodines intermedios o iniciales mediante índices GIN (*Generalized Inverted Index*).
+- **Vendor Lock-in en Base de Datos**: Dependencia de características o extensiones sintácticas propietarias de un motor específico (ej. `ILIKE` en PostgreSQL) que dificulta o encarece la migración hacia otras tecnologías de persistencia.
+
+#### 💻 Ejemplos de Implementación:
+
+##### 1. Consulta 100% ANSI Compliant con TypeORM QueryBuilder (`src/products/products.service.ts`):
+```typescript
+async searchProducts(query: string): Promise<Product[]> {
+  const searchTerm = `%${query.toLowerCase()}%`;
+
+  return this.productsRepository
+    .createQueryBuilder('product')
+    .leftJoinAndSelect('product.category', 'category')
+    .where('LOWER(product.name) LIKE :searchTerm', { searchTerm })
+    .orWhere('LOWER(product.description) LIKE :searchTerm', { searchTerm })
+    .getMany();
+}
+```
+
+##### 2. Creación de Índice de Trigramas en PostgreSQL para Búsquedas Masivas:
+```sql
+-- Habilitar extensión de trigramas
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Índice GIN para búsquedas ILIKE / LOWER eficientes
+CREATE INDEX idx_products_name_trgm ON products USING gin (LOWER(name) gin_trgm_ops);
+CREATE INDEX idx_products_desc_trgm ON products USING gin (LOWER(description) gin_trgm_ops);
+```
+
+---
+
 ## 7. Conclusión
 
-Esta guía completa consolida los fundamentos teóricos, la resolución práctica de fallas de backend, patrones de diseño de sistemas distribuidos, resiliencia con Rate Limiting y Circuit Breaker, tipado estricto en TypeScript y las mejores prácticas de infraestructura moderna en Kubernetes y la nube. Prepara al candidato para responder con solidez a cualquier nivel de entrevista técnica como **Senior Product Engineer**.
+Esta guía completa consolida los fundamentos teóricos, la resolución práctica de fallas de backend, patrones de diseño de sistemas distribuidos, resiliencia con Rate Limiting y Circuit Breaker, portabilidad SQL ANSI, tipado estricto en TypeScript y las mejores prácticas de infraestructura moderna en Kubernetes y la nube. Prepara al candidato para responder con solidez a cualquier nivel de entrevista técnica como **Senior Product Engineer**.
