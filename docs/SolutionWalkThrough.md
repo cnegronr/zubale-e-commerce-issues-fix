@@ -109,7 +109,7 @@ La suite de pruebas automatizada se estructuró en **3 capas bien definidas**:
 
 ## 2. Análisis Detallado de Issues, Diagnóstico Técnico y Comparativa de Código (Before / After)
 
-A continuación se detalla cada uno de los **8 issues técnicos** detectados y resueltos en la aplicación, incluyendo su diagnóstico, el código original que causaba la falla y la solución implementada.
+A continuación se detalla cada uno de los **13 issues y mejoras técnicas** abordados y resueltos en la aplicación, incluyendo su diagnóstico, el código original que causaba la falla y la solución implementada.
 
 ---
 
@@ -219,23 +219,26 @@ for (const item of createOrderDto.items) {
 // 2. Límite de reintentos acotado (5) con respuesta limpia HTTP 503
 async processPayment(orderId: number): Promise<{ success: boolean; transactionId: string }> {
   const order = await this.findOne(orderId);
-  if (order.status === OrderStatus.CANCELLED) {
-    throw new BadRequestException('Cannot process payment for cancelled order');
+  if (order.status !== OrderStatus.PENDING) {
+    throw new BadRequestException(`Cannot process payment for an order with status "${order.status}"`);
   }
 
-  let attempts = 0;
-  while (attempts < this.maxRetries) { // maxRetries = 5
+  let lastError: Error = new ServiceUnavailableException('Payment service unavailable');
+  for (let attempt = 0; attempt < this.maxRetries; attempt++) {
     try {
-      const result = await paymentService.processPayment(order.id, order.total);
-      order.status = OrderStatus.CONFIRMED;
-      await this.ordersRepository.save(order);
-      return result;
-    } catch (error) {
-      attempts++;
+      const result = await paymentService.processPayment(orderId, Number(order.total));
+      if (result.success) {
+        order.status = OrderStatus.CONFIRMED;
+        await this.ordersRepository.save(order);
+        return result;
+      }
+    } catch (error: any) {
+      lastError = new ServiceUnavailableException(error.message);
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
 
-  throw new ServiceUnavailableException('Payment service temporarily unavailable after maximum retries');
+  throw lastError;
 }
 ```
 
@@ -535,6 +538,225 @@ export class Product {
 
   @Column({ name: 'category_id', nullable: true })
   categoryId: number;
+}
+```
+
+---
+
+### 🔴 Issue 9: Máquina de Estados de Órdenes y Validación Estricta de Transiciones (`OrdersService.updateStatus`)
+
+- **Diagnóstico Técnico**: El cambio de estado de una orden en `updateStatus` permitía actualizar cualquier estado sin verificar el estado previo de la orden. Esto permitía saltos ilegales (ej. pasar una orden directamente de `PENDING` a `DELIVERED` o intentar revertir una orden `SHIPPED` a `PENDING`). Además, si una orden ya estaba en el estado objetivo (ej. `SHIPPED`), la API no manejaba la idempotencia y podía relanzar errores.
+
+#### ❌ Código Original (Causa Raíz):
+```typescript
+// src/orders/orders.service.ts (Original)
+async updateStatus(id: number, status: OrderStatus): Promise<Order> {
+  const order = await this.findOne(id);
+  order.status = status; // ¡Sin validación de máquina de estados!
+  return this.ordersRepository.save(order);
+}
+```
+
+#### ✅ Código Actual Corregido:
+```typescript
+// src/orders/orders.service.ts (Actual)
+async updateStatus(id: number, status: OrderStatus): Promise<Order> {
+  let order: Order;
+  try {
+    order = await this.findOne(id);
+  } catch (err) {
+    throw new BadRequestException(`Order #${id} does not exist or orderId is invalid`);
+  }
+
+  if (status !== OrderStatus.SHIPPED && status !== OrderStatus.DELIVERED) {
+    throw new BadRequestException(
+      `Invalid status "${status}". Valid status options for update are: ${OrderStatus.SHIPPED}, ${OrderStatus.DELIVERED}`,
+    );
+  }
+
+  // Idempotencia: Si ya está en el estado objetivo, retorna OK sin modificar DB
+  if (order.status === status) {
+    return order;
+  }
+
+  // Validación estricta de flujo de máquina de estados
+  if (status === OrderStatus.SHIPPED && order.status !== OrderStatus.CONFIRMED) {
+    throw new BadRequestException('Only confirmed orders can be updated to shipped');
+  }
+
+  if (status === OrderStatus.DELIVERED && order.status !== OrderStatus.SHIPPED) {
+    throw new BadRequestException('Only shipped orders can be updated to delivered');
+  }
+
+  order.status = status;
+  return this.ordersRepository.save(order);
+}
+```
+
+---
+
+### 🔴 Issue 10: Cancelación de Órdenes con Restitución Automática de Stock y Manejo Idempotente (`OrdersService.cancel`)
+
+- **Diagnóstico Técnico**: Al cancelar una orden en el sistema original, el estado cambiaba a `CANCELLED` pero las cantidades de producto compradas **no se restituían al inventario de la base de datos**. Además, cancelar una orden ya cancelada provocaba excepciones redundantes en lugar de retornar la orden cancelada de forma idempotente.
+
+#### ❌ Código Original (Causa Raíz):
+```typescript
+// src/orders/orders.service.ts (Original)
+async cancel(id: number): Promise<Order> {
+  const order = await this.findOne(id);
+  order.status = OrderStatus.CANCELLED;
+  return this.ordersRepository.save(order); // ¡No devuelve el stock a la base de datos!
+}
+```
+
+#### ✅ Código Actual Corregido:
+```typescript
+// src/orders/orders.service.ts (Actual)
+async cancel(id: number): Promise<Order> {
+  const order = await this.findOne(id);
+  
+  // Idempotencia: Si ya está cancelada, retorna la orden limpia
+  if (order.status === OrderStatus.CANCELLED) {
+    return order;
+  }
+
+  if (order.status !== OrderStatus.PENDING) {
+    throw new BadRequestException('Only pending orders can be cancelled');
+  }
+  
+  order.status = OrderStatus.CANCELLED;
+  const savedOrder = await this.ordersRepository.save(order);
+
+  // Restitución síncrona de inventario en la base de datos
+  for (const item of order.items) {
+    const product = await this.productsService.findOne(item.productId);
+    await this.productsService.updateStock(product.id, product.stock + item.quantity);
+  }
+  
+  return savedOrder;
+}
+```
+
+---
+
+### 🔴 Issue 11: Agregación de Items Duplicados y Validación Consolidada en Creación de Órdenes (`OrdersService.create`)
+
+- **Diagnóstico Técnico**: Cuando el payload de creación de una orden incluía múltiples elementos con el mismo `productId` (ej. dos items de `productId: 1` con cantidades 2 y 3), la validación original revisaba cada item de forma independiente. Esto provocaba errores al comprobar el stock disponible o al restar inventario múltiples veces por separado.
+
+#### ❌ Código Original (Causa Raíz):
+```typescript
+// src/orders/orders.service.ts (Original)
+// Itera items duplicados individualmente provocando desbalances
+for (const item of createOrderDto.items) {
+  const product = await this.productsService.findOne(item.productId);
+  if (product.stock < item.quantity) {
+    throw new BadRequestException('Insufficient stock');
+  }
+}
+```
+
+#### ✅ Código Actual Corregido:
+```typescript
+// src/orders/orders.service.ts (Actual)
+// Consolidación de items por productId antes de validar inventario
+const itemMap = new Map<number, number>();
+for (const itemDto of createOrderDto.items) {
+  const currentQty = itemMap.get(itemDto.productId) || 0;
+  itemMap.set(itemDto.productId, currentQty + itemDto.quantity);
+}
+
+// Validación agregada de existencias
+for (const [productId, totalQuantity] of itemMap.entries()) {
+  const product = await this.productsService.findOne(productId);
+  if (product.stock < totalQuantity) {
+    insufficientStockItems.push(`${product.name} (requested: ${totalQuantity}, available: ${product.stock})`);
+  } else {
+    validatedItems.push({ product, quantity: totalQuantity });
+  }
+}
+```
+
+---
+
+### 🔴 Issue 12: Prevención de Pagos en Órdenes No Pendientes y Mutación a `CONFIRMED` (`OrdersService.processPayment`)
+
+- **Diagnóstico Técnico**: Se permitía intentar procesar pagos sobre órdenes que se encontraban en estado `CANCELLED`, `SHIPPED` o `DELIVERED`. Tras un pago exitoso, el estado de la orden no se actualizaba automáticamente a `CONFIRMED`.
+
+#### ❌ Código Original (Causa Raíz):
+```typescript
+// src/orders/orders.service.ts (Original)
+async processPayment(orderId: number): Promise<any> {
+  // Sin validación del estado previo de la orden
+  return paymentService.processPayment(orderId, 100); // Tampoco actualiza status a CONFIRMED
+}
+```
+
+#### ✅ Código Actual Corregido:
+```typescript
+// src/orders/orders.service.ts (Actual)
+async processPayment(orderId: number): Promise<{ success: boolean; transactionId: string }> {
+  const order = await this.findOne(orderId);
+  if (order.status !== OrderStatus.PENDING) {
+    throw new BadRequestException(`Cannot process payment for an order with status "${order.status}"`);
+  }
+  
+  let lastError: Error = new ServiceUnavailableException('Payment service unavailable');
+  for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+    try {
+      const result = await paymentService.processPayment(orderId, Number(order.total));
+      if (result.success) {
+        order.status = OrderStatus.CONFIRMED; // Mutación automática de estado
+        await this.ordersRepository.save(order);
+        return result;
+      }
+    } catch (error: any) {
+      lastError = new ServiceUnavailableException(error.message);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  throw lastError;
+}
+```
+
+---
+
+### 🔴 Issue 13: Validación Global de DTOs y Atributos con Decoradores `Class-Validator`
+
+- **Diagnóstico Técnico**: Las peticiones HTTP recibían objetos JSON con campos faltantes, tipos incorrectos (ej. cadenas en lugar de números) o valores negativos (ej. precio `-500` o cantidad `0`). Al no estar anotados los DTOs con decoradores de `class-validator`, la aplicación procesaba payloads inválidos generando excepciones de driver de PostgreSQL.
+
+#### ❌ Código Original (Causa Raíz):
+```typescript
+// src/orders/dto/create-order.dto.ts (Original)
+export class CreateOrderDto {
+  userId: number; // Sin validación de tipo ni límites positivos
+  items: Array<{ productId: number; quantity: number }>;
+}
+```
+
+#### ✅ Código Actual Corregido:
+```typescript
+// src/orders/dto/create-order.dto.ts (Actual)
+export class CreateOrderItemDto {
+  @IsNumber()
+  @Min(1, { message: 'Product ID must be a positive integer greater than 0' })
+  productId: number;
+
+  @IsNumber()
+  @Min(1, { message: 'Quantity must be at least 1' })
+  quantity: number;
+}
+
+export class CreateOrderDto {
+  @IsNumber()
+  @Min(1, { message: 'User ID must be a positive integer greater than 0' })
+  userId: number;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Order must contain at least one item' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderItemDto)
+  items: CreateOrderItemDto[];
 }
 ```
 
