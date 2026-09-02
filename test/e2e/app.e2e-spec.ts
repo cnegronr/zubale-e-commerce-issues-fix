@@ -30,4 +30,20 @@ describe('AppController (e2e)', () => {
       .expect(200)
       .expect('Hello World!');
   });
+
+  it('should test ThrottlerExceptionFilter formatting', () => {
+    const { ThrottlerExceptionFilter } = require('../../src/common/filters/throttler-exception.filter');
+    const filter = new ThrottlerExceptionFilter();
+    const mockJson = jest.fn();
+    const mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+    const mockHeader = jest.fn();
+    const mockHost = {
+      switchToHttp: () => ({
+        getResponse: () => ({ header: mockHeader, status: mockStatus }),
+      }),
+    } as any;
+    const { ThrottlerException } = require('@nestjs/throttler');
+    filter.catch(new ThrottlerException('Too Many Requests'), mockHost);
+    expect(mockStatus).toHaveBeenCalledWith(429);
+  });
 });

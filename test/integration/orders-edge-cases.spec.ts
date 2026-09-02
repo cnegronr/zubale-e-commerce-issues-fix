@@ -156,5 +156,21 @@ describe('Orders Edge-Case & Idempotency Tests', () => {
       await expect(ordersService.create({ userId: 0, items: [{ productId: 1, quantity: 1 }] })).rejects.toThrow(BadRequestException);
       await expect(ordersService.create({ userId: 1, items: [{ productId: 0, quantity: 1 }] })).rejects.toThrow(BadRequestException);
     });
+
+    it('MUST format ThrottlerException with 429 status code', () => {
+      const { ThrottlerExceptionFilter } = require('../../src/common/filters/throttler-exception.filter');
+      const filter = new ThrottlerExceptionFilter();
+      const mockJson = jest.fn();
+      const mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+      const mockHeader = jest.fn();
+      const mockHost = {
+        switchToHttp: () => ({
+          getResponse: () => ({ header: mockHeader, status: mockStatus }),
+        }),
+      } as any;
+      const { ThrottlerException } = require('@nestjs/throttler');
+      filter.catch(new ThrottlerException('Too Many Requests'), mockHost);
+      expect(mockStatus).toHaveBeenCalledWith(429);
+    });
   });
 });

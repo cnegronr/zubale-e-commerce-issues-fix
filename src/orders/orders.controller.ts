@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from './order.entity';
@@ -28,11 +29,13 @@ export class OrdersController {
   }
 
   @Post()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   create(@Body() createOrderDto: CreateOrderDto) {
     return this.ordersService.create(createOrderDto);
   }
 
   @Post(':id/pay')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   processPayment(@Param('id', ParsePositiveIntPipe) id: number) {
     return this.ordersService.processPayment(id);
   }
